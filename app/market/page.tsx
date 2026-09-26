@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";\nimport { useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import HeroBanner from "@/components/HeroBanner";
 import { Panel } from "@/components/UI";
 import { assets } from "@/lib/mock-data";
