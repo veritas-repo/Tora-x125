@@ -185,7 +185,7 @@ The shared Permit2 address is also included in `lib/uniswap.ts`. An explicit `UN
 - **License:** MIT — see `LICENSE`
 - **Feedback file:** [`FEEDBACK.md`](https://github.com/veritas-repo/Tora-x125/blob/main/FEEDBACK.md)
 - **Uniswap Developer Feedback Form:** https://developers.uniswap.org/hackathon-feedback
-- **Form status:** **pending browser submission**. The repository feedback is ready, but this README intentionally does not claim that the external form has been submitted until submission is confirmed.
+- **Form status:** **Submitted.** The Uniswap Developer Feedback Form has been completed and submitted with the repository `FEEDBACK.md` link.
 
 ---
 
