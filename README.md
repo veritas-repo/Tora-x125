@@ -45,28 +45,6 @@ If you have only a few minutes, review the project in this order:
 | Live 1inch authenticated execution | **Design / next step** | documented below |
 | Sui / Move / zkLogin / DeepBook version | **Explored architecture** | README documentation |
 
-### 3-minute demo path
-
-```text
-1. Dashboard
-   See tokenised assets, market KPIs and verified impact
-        ↓
-2. Project Verification
-   Review due diligence, MRV and onchain audit trail
-        ↓
-3. Asset Detail
-   Inspect price, yield, maturity, token supply and impact
-        ↓
-4. Secondary Market
-   Compare liquidity and prepare a buy/sell transaction
-        ↓
-5. Portfolio
-   View balances, returns, repayments and allocations
-        ↓
-6. Impact Analytics
-   Connect financial performance with real-world outcomes
-```
-
 ### Six use cases at a glance
 
 | # | Screen | Judge question answered | Core Web3 implementation |
