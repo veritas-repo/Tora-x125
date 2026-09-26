@@ -37,6 +37,10 @@ If you have only a few minutes, review the project in this order:
 | Uniswap v4 CREATE2 permission-bit deployment | **Implemented + tested** | `contracts/uniswap/HookCreate2Factory.sol`, `scripts/deploy-uniswap-hook.ts` |
 | Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |
 | Uniswap developer feedback | **Repository feedback complete** | `FEEDBACK.md` |
+| 1inch custom Aqua + SwapVM app | **Implemented + tested** | `contracts/oneinch/ToraImpactAquaRouter.sol` |
+| 1inch custom SwapVM opcode | **Implemented + tested** | `contracts/oneinch/ImpactRiskAdjuster.sol` |
+| 1inch sophisticated Aqua position builder | **Implemented + tested** | `contracts/oneinch/ToraAquaPositionBuilder.sol` |
+| 1inch Aqua position demo script / UI | **Implemented** | `scripts/demo-aqua-position.js`, `/aqua-position` |
 | 1inch quote adapter boundary | **Implemented** | `lib/oneinch.ts` |
 | ENS helper | **Implemented** | `lib/ens.ts` |
 | World ID for Agents sandbox OIDC integration | **Implemented** | `lib/worldid-server.ts`, `app/api/world/*` |
@@ -62,7 +66,7 @@ If you have only a few minutes, review the project in this order:
 
 **Uniswap v4** — implemented as the programmable secondary-liquidity layer. Tora-x125 now includes a real `beforeSwap` hook (`ToraImpactHook`) that enforces per-pool liveness and maximum-swap policy, CREATE2 deployment that mines the correct v4 hook permission bits, official Sepolia/Base Sepolia PoolManager configuration, Hardhat tests, and the existing Universal Router execution helper.
 
-**1inch** — used for route discovery and stablecoin settlement optimisation. The repo contains a v6 quote adapter boundary and documents server-side API authentication, route validation and comparison against a direct Uniswap v4 route.
+**1inch Aqua + SwapVM** — Tora-x125 now implements a custom Aqua app for an **Impact-Adjusted Concentrated Liquidity** position. It extends the official `AquaSwapVMRouter`, adds a custom `0xd0` risk/impact pricing opcode, and composes official `Decay`, `FeeFlatIn`, `XYCConcentrateSwap`, `Deadline` and `Salt` instructions. The final position is demonstrated by automated tests, an executable local settlement script, and the `/aqua-position` judge UI. The existing 1inch quote adapter remains available for aggregated-route comparison.
 
 **ENS** — used for readable issuer/project identities through an ethers.js resolution helper.
 
@@ -75,6 +79,7 @@ app/
   impact/page.tsx                  impact analytics
   portfolio/page.tsx               portfolio
   market/page.tsx                  secondary market
+  aqua-position/page.tsx           1inch Aqua + SwapVM position demo
   assets/emerald-horizons/page.tsx asset detail
 
 contracts/
@@ -84,10 +89,16 @@ contracts/
   uniswap/
     ToraImpactHook.sol             Uniswap v4 BEFORE_SWAP market-policy hook
     HookCreate2Factory.sol         deterministic hook-address deployment
+  oneinch/
+    ToraImpactAquaRouter.sol       custom Aqua + SwapVM application
+    ImpactRiskAdjuster.sol         custom SwapVM opcode 0xd0
+    ToraAquaPositionBuilder.sol    sophisticated position program builder
+    OfficialAquaImport.sol         official Aqua implementation import
 
 lib/
   uniswap.ts                       Universal Router execution helper
   oneinch.ts                       1inch quote adapter
+  aqua.ts                          Aqua position metadata for judge UI
   worldid.ts                       client-safe World integration types
   worldid-server.ts                sandbox OIDC + PKCE + secure ID-token validation
   ens.ts                           ENS identity resolution
@@ -95,6 +106,7 @@ lib/
 scripts/
   deploy.ts                        Tora contract deployment
   deploy-uniswap-hook.ts           Uniswap v4 hook CREATE2 deployment
+  demo-aqua-position.js            Aqua + SwapVM onchain settlement demo
 
 .github/workflows/
   ci.yml                           compile + test + build
@@ -164,6 +176,59 @@ The shared Permit2 address is also included in `lib/uniswap.ts`. An explicit `UN
 - **Feedback file:** [`FEEDBACK.md`](https://github.com/veritas-repo/Tora-x125/blob/main/FEEDBACK.md)
 - **Uniswap Developer Feedback Form:** https://developers.uniswap.org/hackathon-feedback
 - **Form status:** **Submitted.** The Uniswap Developer Feedback Form has been completed and submitted with the repository `FEEDBACK.md` link.
+
+---
+
+## 1inch Aqua + SwapVM prize review
+
+Tora-x125 implements a custom **Aqua application** called **Impact-Adjusted Concentrated Liquidity**. The app extends the official 1inch `AquaSwapVMRouter`, uses the official Aqua shared-liquidity contract, and adds a Tora-specific SwapVM pricing instruction while retaining official SwapVM settlement and AMM instructions.
+
+### Code judges can verify directly
+
+| Integration | Relevant source |
+| --- | --- |
+| Custom Aqua / SwapVM application | [`ToraImpactAquaRouter.sol` — lines 13–29](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/oneinch/ToraImpactAquaRouter.sol#L13-L29) |
+| Custom SwapVM opcode `0xd0` | [`ImpactRiskAdjuster.sol` — lines 12–74](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/oneinch/ImpactRiskAdjuster.sol#L12-L74) |
+| Sophisticated position program | [`ToraAquaPositionBuilder.sol` — lines 31–132](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/oneinch/ToraAquaPositionBuilder.sol#L31-L132) |
+| Official SwapVM instructions composed | [`buildProgram` — lines 43–58](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/oneinch/ToraAquaPositionBuilder.sol#L43-L58) |
+| Real ERC-20 settlement test | [`ToraAquaSwapVM.js` — lines 115–175](https://github.com/veritas-repo/Tora-x125/blob/main/test/ToraAquaSwapVM.js#L115-L175) |
+| Risk-vs-impact pricing test | [`ToraAquaSwapVM.js` — lines 177–222](https://github.com/veritas-repo/Tora-x125/blob/main/test/ToraAquaSwapVM.js#L177-L222) |
+| Executable onchain demo | [`demo-aqua-position.js` — lines 81–148](https://github.com/veritas-repo/Tora-x125/blob/main/scripts/demo-aqua-position.js#L81-L148) |
+| Judge UI | [`/aqua-position`](https://github.com/veritas-repo/Tora-x125/tree/main/app/aqua-position) |
+| Full technical design | [`docs/oneinch-aqua-swapvm.md`](https://github.com/veritas-repo/Tora-x125/blob/main/docs/oneinch-aqua-swapvm.md) |
+
+### Position composition
+
+```text
+optional Deadline
+      ↓
+ImpactRiskAdjuster       custom Tora opcode 0xd0
+      ↓
+Decay                    official SwapVM
+      ↓
+FeeFlatIn                official SwapVM
+      ↓
+XYCConcentrateSwap       official SwapVM
+      ↓
+Salt                     official SwapVM
+```
+
+The custom instruction changes SwapVM's virtual pricing balance according to a bounded **risk premium** and **verified-impact discount**. The official concentrated-XYC instruction supplies bounded AMM liquidity, `Decay` introduces time-decaying inventory pressure after fills, `FeeFlatIn` charges the LP fee, and optional `Deadline` plus `Salt` provide expiry and immutable strategy identity.
+
+### Final-position demonstration
+
+Run:
+
+```bash
+npm run contracts:test
+npm run demo:aqua
+```
+
+The automated test suite ships the immutable strategy through official Aqua, obtains a SwapVM quote, executes the trade, verifies actual ERC-20 balance changes for maker and taker, verifies Aqua virtual-balance updates, and shows that risk-heavy and impact-heavy configurations produce different execution prices.
+
+The standalone demo script additionally prints the Aqua address, custom application address, strategy hash, Aqua `ship` transaction hash, SwapVM execution transaction hash, token balance deltas, and final Aqua balances. The same demo command is wired into GitHub Actions.
+
+The judge-facing product view is available at **`/aqua-position`**.
 
 ---
 
@@ -1137,13 +1202,16 @@ sequenceDiagram
 - **Asset representation:** a conventional v4 pool still requires a fungible ERC-20 representation; raw ERC-1155 project units need a wrapper or an alternative market design.
 - **Compliance boundary:** hook policy is a market-control layer, not the sole identity/transfer-compliance mechanism.
 
-**1inch implementation path**
+**1inch Aqua + SwapVM implementation**
 
-- 1inch calls should originate from a server route so the API key is not shipped to the browser.
-- The quote request should be chain-specific and use canonical token addresses and integer base-unit amounts.
-- Tora-x125 can compare a 1inch aggregated quote with the direct Tora v4 pool route and expose the expected output, price impact/slippage, and estimated gas before the investor signs.
-- A quote is not a settlement guarantee; the app must apply minimum-output protection and refresh stale quotes.
-- Where 1inch returns transaction data for an executable route, Tora-x125 should validate the destination contract, chain, calldata metadata and token pair before presenting it to the signer.
+- **Official protocols:** `package.json` pins the official 1inch Aqua and SwapVM repositories. `OfficialAquaImport.sol` compiles the official Aqua implementation into the local demo artifact graph.
+- **Custom Aqua app:** `ToraImpactAquaRouter.sol` extends the official `AquaSwapVMRouter` rather than replacing Aqua accounting or transfer logic.
+- **Custom SwapVM instruction:** `ImpactRiskAdjuster.sol` uses opcode `0xd0` from the unallocated bank to modify virtual pricing from a bounded risk premium and impact discount.
+- **Sophisticated position:** `ToraAquaPositionBuilder.sol` composes the custom instruction with official `Decay`, `FeeFlatIn`, `XYCConcentrateSwap`, optional `Deadline`, and `Salt`.
+- **Aqua position lifecycle:** makers approve Aqua, call `ship()` with immutable strategy data and virtual token balances, and retain custody in their wallet until execution.
+- **Settlement proof:** `test/ToraAquaSwapVM.js` and `scripts/demo-aqua-position.js` execute actual ERC-20 maker/taker transfers through Aqua + SwapVM and verify resulting Aqua virtual balances.
+- **UI proof:** `/aqua-position` exposes the position composition and judge source map.
+- **Aggregation remains complementary:** `lib/oneinch.ts` remains available for 1inch API quote comparison; API keys must remain server-side and executable routes must be revalidated before wallet signing.
 
 **World ID implementation path**
 
@@ -1328,14 +1396,19 @@ Uniswap v4 is the programmable liquidity layer. Tora-x125 now contains a concret
 
 The hook deliberately returns zero swap delta: when policy passes, ordinary Uniswap v4 AMM math remains responsible for pricing and settlement.
 
-### 1inch
+### 1inch Aqua + SwapVM
 
-The 1inch adapter provides a routing boundary for finding efficient swap paths and stablecoin settlement across available EVM liquidity.
+Tora-x125 implements a custom Aqua application for **Impact-Adjusted Concentrated Liquidity**. The custom router inherits from the official 1inch `AquaSwapVMRouter` and adds a Tora-specific `ImpactRiskAdjuster` opcode while using official Aqua accounting and SwapVM settlement.
 
-For the hackathon MVP, 1inch and Uniswap v4 are complementary:
+The position combines:
 
-- **Uniswap v4** — primary programmable liquidity and hook logic
-- **1inch** — route optimisation across available swap liquidity
+- **risk/impact-aware pricing** — custom opcode `0xd0`;
+- **concentrated AMM liquidity** — official `XYCConcentrateSwap`;
+- **inventory-aware pricing** — official `Decay`;
+- **LP economics** — official `FeeFlatIn`;
+- **position controls** — optional `Deadline` and `Salt`.
+
+The position is demonstrated in `test/ToraAquaSwapVM.js`, `scripts/demo-aqua-position.js`, and the `/aqua-position` UI. The separate 1inch API adapter remains a complementary route-discovery layer.
 
 ## Identity and verification
 
@@ -1579,7 +1652,7 @@ For Base Sepolia, switch `NEXT_PUBLIC_CHAIN_ID` to `84532` and use the Base depl
 
 Tora-x125 is a hackathon MVP demonstrating the architecture for a secondary market in verified, tokenised impact investments.
 
-Before production use, add audited transfer restrictions, regulatory/eligibility controls, production Uniswap v4 hook logic, production 1inch API execution, server-side World ID proof verification, verified impact-data oracles, indexing, robust repayment snapshots and a smart-contract security review.
+Before production use, add audited transfer restrictions, regulatory/eligibility controls, audited Aqua/SwapVM position parameters and custom opcode logic, production Uniswap v4 deployment, production 1inch API execution, server-side World ID verification, verified impact-data oracles, indexing, robust repayment snapshots and a smart-contract security review.
 
 ## Commands
 
@@ -1588,6 +1661,7 @@ npm run dev
 npm run build
 npm run contracts:compile
 npm run contracts:test
+npm run demo:aqua
 npm run deploy:sepolia
 npm run deploy:base-sepolia
 ```
