@@ -1,13 +1,16 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("Tora-x125 contracts", function () {
   it("mints ERC-1155 project units with impact/risk metadata", async function () {
-    const [owner, investor] = await ethers.getSigners();
+    const [, investor] = await ethers.getSigners();
     const Asset = await ethers.getContractFactory("ImpactAsset1155");
     const asset = await Asset.deploy();
+    await asset.waitForDeployment();
 
-    const maturity = (await ethers.provider.getBlock("latest"))!.timestamp + 86400;
+    const latest = await ethers.provider.getBlock("latest");
+    const maturity = latest.timestamp + 86400;
+
     await asset.createProject(
       investor.address,
       1000,
@@ -32,6 +35,8 @@ describe("Tora-x125 contracts", function () {
     const [owner] = await ethers.getSigners();
     const Token = await ethers.getContractFactory("ImpactToken");
     const token = await Token.deploy();
+    await token.waitForDeployment();
+
     expect(await token.balanceOf(owner.address)).to.equal(ethers.parseEther("1000000"));
   });
 });
