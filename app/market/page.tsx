@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";\nimport { useState } from "react";
 import HeroBanner from "@/components/HeroBanner";
 import { Panel } from "@/components/UI";
 import { assets } from "@/lib/mock-data";
@@ -36,7 +36,7 @@ export default function MarketPage() {
         <label className="fieldLabel">Order Type</label><div className="quickButtons"><button className="selected">Market</button><button>Limit</button><button>Stop</button></div>
         <label className="fieldLabel">Amount</label><div className="inputMock"><span>{selected.icon}</span><span>Enter amount</span><small>TORA</small></div>
         <div className="costLine"><span>Estimated Cost</span><b>-- USDC</b></div>
-        <button className="goldBtn fullBtn">Review {side} Order</button>
+        <button className="goldBtn fullBtn">Review {side} Order</button><Link className="worldMarketLink" href="/world-agents">◎ Verify with World before protected Trade Agent action →</Link>
       </Panel>
     </section>
 
