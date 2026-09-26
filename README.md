@@ -10,6 +10,122 @@ Tora-x125 is built around tokenised impact assets and programmable secondary liq
 
 The core implementation targets **Ethereum and Base**. We also explored a **Sui** implementation using Move, zkLogin and DeepBook as an alternative high-performance secondary-market architecture.
 
+## Judge quick review
+
+If you have only a few minutes, review the project in this order:
+
+1. **Problem & solution** — Tora-x125 creates a secondary market for verified, tokenised impact investments that are normally difficult to trade before maturity.
+2. **Product flow** — Dashboard → Project Verification → Asset Detail → Secondary Market → Portfolio → Impact Analytics.
+3. **Smart contracts** — `ImpactAsset1155`, `ImpactToken`, and `RepaymentVault`.
+4. **Partner integrations** — World ID for privacy-preserving investor verification, Uniswap v4 for programmable liquidity, 1inch for route optimisation, and ENS for readable identities.
+5. **Testnet readiness** — Ethereum Sepolia and Base Sepolia deployment scripts and GitHub Actions workflow are included. Deployment is currently blocked only by the missing `DEPLOYER_PRIVATE_KEY` repository secret.
+6. **Run locally** — `npm install && npm run dev`; compile/test contracts with `npm run contracts:compile && npm run contracts:test`.
+
+### What is implemented vs. demonstrated
+
+| Area | Status | Where to review |
+| --- | --- | --- |
+| Next.js / TypeScript product UI | **Implemented** | `app/`, six product routes |
+| MetaMask / EIP-1193 wallet connection | **Implemented** | `components/AppShell.tsx` |
+| ERC-1155 impact-asset tokenisation | **Implemented** | `contracts/ImpactAsset1155.sol` |
+| ERC-20 settlement token | **Implemented** | `contracts/ImpactToken.sol` |
+| Repayment / distribution contract | **Implemented** | `contracts/RepaymentVault.sol` |
+| Solidity tests | **Implemented + CI passing** | `test/ImpactAsset.js`, GitHub Actions |
+| Ethereum Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
+| Base Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
+| Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |
+| 1inch quote adapter boundary | **Implemented** | `lib/oneinch.ts` |
+| ENS helper | **Implemented** | `lib/ens.ts` |
+| World ID config / verification boundary | **Implemented** | `lib/worldid.ts` |
+| Production World ID proof verifier | **Design / next step** | documented below |
+| Live Uniswap v4 pool + seeded test liquidity | **Design / next step** | documented below |
+| Live 1inch authenticated execution | **Design / next step** | documented below |
+| Sui / Move / zkLogin / DeepBook version | **Explored architecture** | README documentation |
+
+### 3-minute demo path
+
+```text
+1. Dashboard
+   See tokenised assets, market KPIs and verified impact
+        ↓
+2. Project Verification
+   Review due diligence, MRV and onchain audit trail
+        ↓
+3. Asset Detail
+   Inspect price, yield, maturity, token supply and impact
+        ↓
+4. Secondary Market
+   Compare liquidity and prepare a buy/sell transaction
+        ↓
+5. Portfolio
+   View balances, returns, repayments and allocations
+        ↓
+6. Impact Analytics
+   Connect financial performance with real-world outcomes
+```
+
+### Six use cases at a glance
+
+| # | Screen | Judge question answered | Core Web3 implementation |
+| --- | --- | --- | --- |
+| 1 | **Dashboard** | What can an investor discover quickly? | wallet state, onchain balances/events, liquidity + impact aggregation |
+| 2 | **Project Verification** | Why should the underlying asset be trusted? | metadata hashes, audit trail, verifier events, World ID boundary |
+| 3 | **Impact Analytics** | How is impact measured alongside returns? | MRV provenance + holdings + market-event aggregation |
+| 4 | **Portfolio** | What happens after the investor buys? | balances, repayments, rebalancing, route comparison |
+| 5 | **Asset Detail** | What exactly is the investor buying? | token metadata, eligibility, quote preparation, approvals |
+| 6 | **Secondary Market** | How does liquidity actually work? | Uniswap v4, Permit2/Universal Router, 1inch routing, settlement |
+
+### Partner technology summary
+
+**World ID** — used as a privacy-preserving investor-verification boundary before restricted actions. The repo currently contains the application/action configuration layer; server-side proof verification is documented as the next execution step.
+
+**Uniswap v4** — used as the programmable liquidity layer. The repo includes an executable Universal Router helper and documents PoolManager, Permit2, pool configuration, liquidity seeding and optional hook logic.
+
+**1inch** — used for route discovery and stablecoin settlement optimisation. The repo contains a v6 quote adapter boundary and documents server-side API authentication, route validation and comparison against a direct Uniswap v4 route.
+
+**ENS** — used for readable issuer/project identities through an ethers.js resolution helper.
+
+### Repository map
+
+```text
+app/
+  page.tsx                         investor dashboard
+  projects/page.tsx                project verification
+  impact/page.tsx                  impact analytics
+  portfolio/page.tsx               portfolio
+  market/page.tsx                  secondary market
+  assets/emerald-horizons/page.tsx asset detail
+
+contracts/
+  ImpactAsset1155.sol              tokenised project units
+  ImpactToken.sol                  demo ERC-20 settlement asset
+  RepaymentVault.sol               project distributions
+
+lib/
+  uniswap.ts                       Universal Router execution helper
+  oneinch.ts                       1inch quote adapter
+  worldid.ts                       World ID configuration boundary
+  ens.ts                           ENS identity resolution
+
+scripts/
+  deploy.ts                        Sepolia / Base Sepolia deployment
+
+.github/workflows/
+  ci.yml                           compile + test + build
+  deploy-testnets.yml              testnet deployment workflow
+```
+
+### Current testnet status
+
+| Network | Chain ID | Deployment status |
+| --- | ---: | --- |
+| Ethereum Sepolia | 11155111 | Ready to deploy; waiting for GitHub `DEPLOYER_PRIVATE_KEY` secret |
+| Base Sepolia | 84532 | Ready to deploy; waiting for GitHub `DEPLOYER_PRIVATE_KEY` secret |
+
+The deployment workflow has already been exercised through dependency installation and contract compilation. It intentionally stops before broadcasting if the deployer secret is absent, so no private key is ever committed to the repository.
+
+---
+
 ## Hackathon stack
 
 ### Ethereum developer tools
@@ -85,7 +201,9 @@ Ethereum / Base smart contracts
 - Hardhat contract tests and GitHub Actions CI
 - Documentation of the explored Sui / Move / zkLogin / DeepBook architecture
 
-## Product use cases
+## Detailed product use cases
+
+> **For judges:** the table in **Judge quick review** gives the fastest overview. The sections below provide the technical depth, workflows, screenshots and testnet-oriented implementation notes for each screen.
 
 The six product views below describe an end-to-end investor journey for verified, tokenised impact investments. Together they show how Tora-x125 connects **project verification**, **tokenisation**, **secondary liquidity**, **portfolio management**, and **measurable impact** in one product experience.
 
