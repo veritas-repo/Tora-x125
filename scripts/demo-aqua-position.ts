@@ -60,12 +60,17 @@ async function main() {
     salt: 125
   };
 
-  const order = await builder.buildOrder(
+  const builtOrder = await builder.buildOrder(
     maker.address,
     await tokenA.getAddress(),
     await tokenB.getAddress(),
     config
   );
+  const order = {
+    maker: builtOrder.maker,
+    traits: builtOrder.traits,
+    data: builtOrder.data
+  };
 
   const encodedOrder = ethers.AbiCoder.defaultAbiCoder().encode(
     ["tuple(address maker,uint256 traits,bytes data)"],
