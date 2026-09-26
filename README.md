@@ -33,7 +33,10 @@ If you have only a few minutes, review the project in this order:
 | Solidity tests | **Implemented + CI passing** | `test/ImpactAsset.js`, GitHub Actions |
 | Ethereum Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
 | Base Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
-| Uniswap v4 `beforeSwap` impact-market hook | **Implemented + tested** | `contracts/uniswap/ToraImpactHook.sol` |\n| Uniswap v4 CREATE2 permission-bit deployment | **Implemented + tested** | `contracts/uniswap/HookCreate2Factory.sol`, `scripts/deploy-uniswap-hook.ts` |\n| Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |\n| Uniswap developer feedback | **Repository feedback complete** | `FEEDBACK.md` |
+| Uniswap v4 `beforeSwap` impact-market hook | **Implemented + tested** | `contracts/uniswap/ToraImpactHook.sol` |
+| Uniswap v4 CREATE2 permission-bit deployment | **Implemented + tested** | `contracts/uniswap/HookCreate2Factory.sol`, `scripts/deploy-uniswap-hook.ts` |
+| Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |
+| Uniswap developer feedback | **Repository feedback complete** | `FEEDBACK.md` |
 | 1inch quote adapter boundary | **Implemented** | `lib/oneinch.ts` |
 | ENS helper | **Implemented** | `lib/ens.ts` |
 | World ID config / verification boundary | **Implemented** | `lib/worldid.ts` |
@@ -265,6 +268,7 @@ Ethereum / Base smart contracts
 - ERC-1155 project-unit tokenisation
 - ERC-20 demo settlement/liquidity token
 - Repayment vault for project distributions
+- Uniswap v4 `beforeSwap` impact-market hook + CREATE2 deployment
 - Uniswap v4 / Universal Router execution helper
 - 1inch routing integration adapter
 - ENS name-resolution helper
