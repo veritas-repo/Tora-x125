@@ -674,32 +674,110 @@ npm run contracts:test
 npm run build
 ```
 
-## Testnet deployment
+## Testnet deployments
 
-Copy the environment template:
+Tora-x125 is configured for deployment to two EVM testnets:
 
-```bash
-cp .env.example .env
-```
+| Network | Chain ID | Purpose | Status |
+| --- | ---: | --- | --- |
+| Ethereum Sepolia | 11155111 | Primary Ethereum test deployment | **Pending deployment** |
+| Base Sepolia | 84532 | Low-cost EVM secondary-market deployment | **Pending deployment** |
 
-### Ethereum Sepolia
+The repository includes a GitHub Actions deployment workflow at `.github/workflows/deploy-testnets.yml`. It compiles the contracts, checks for a deployment key, deploys to both testnets, and uploads the deployment logs as a workflow artifact.
+
+### Current deployment status
+
+A deployment run was triggered from GitHub Actions. Contract installation and compilation completed successfully, but the deployment stopped before any transaction was broadcast because the repository does not currently have a `DEPLOYER_PRIVATE_KEY` Actions secret configured.
+
+No contract addresses are listed here until an onchain deployment succeeds.
+
+### Required GitHub Actions secrets
+
+Configure the following under **GitHub repository → Settings → Secrets and variables → Actions**:
+
+| Secret | Required | Description |
+| --- | --- | --- |
+| `DEPLOYER_PRIVATE_KEY` | Yes | Private key for a dedicated testnet deployment wallet. Do not commit this value to the repository. |
+| `SEPOLIA_RPC_URL` | Optional | Ethereum Sepolia RPC endpoint. The workflow can fall back to a public endpoint. |
+| `BASE_SEPOLIA_RPC_URL` | Optional | Base Sepolia RPC endpoint. The workflow can fall back to the public Base Sepolia RPC. |
+
+The deployment wallet must hold enough **testnet ETH** on both networks to pay gas.
+
+### Contracts deployed on each network
+
+The deployment script deploys the same contract set to Ethereum Sepolia and Base Sepolia:
+
+1. `ImpactToken` — ERC-20 demo settlement / quote token.
+2. `ImpactAsset1155` — ERC-1155 project-unit tokenisation contract.
+3. `RepaymentVault` — programmable repayment/distribution contract.
+4. A sample project — **Tokyo Bay Solar Bond** — is created after deployment.
+
+### Deployment commands
+
+Local deployment uses the same Hardhat configuration as CI:
 
 ```bash
 npm run deploy:sepolia
-```
-
-### Base Sepolia
-
-```bash
 npm run deploy:base-sepolia
 ```
 
-The deployment script creates:
+Required environment variables:
 
-1. `ImpactToken`
-2. `ImpactAsset1155`
-3. `RepaymentVault`
-4. sample project: **Tokyo Bay Solar Bond**
+```bash
+DEPLOYER_PRIVATE_KEY=0x...
+SEPOLIA_RPC_URL=https://...
+BASE_SEPOLIA_RPC_URL=https://...
+```
+
+### GitHub Actions deployment workflow
+
+The workflow performs:
+
+```text
+Checkout repository
+      ↓
+Install dependencies
+      ↓
+Compile Solidity contracts
+      ↓
+Check DEPLOYER_PRIVATE_KEY secret
+      ↓
+Deploy ImpactToken
+      ↓
+Deploy ImpactAsset1155
+      ↓
+Deploy RepaymentVault
+      ↓
+Create sample project
+      ↓
+Repeat on Base Sepolia
+      ↓
+Upload deployment logs
+```
+
+After a successful deployment, this section should be updated with the deployed addresses and explorer links in the following format:
+
+| Network | Contract | Address | Explorer |
+| --- | --- | --- | --- |
+| Ethereum Sepolia | ImpactToken | `0x...` | `https://sepolia.etherscan.io/address/0x...` |
+| Ethereum Sepolia | ImpactAsset1155 | `0x...` | `https://sepolia.etherscan.io/address/0x...` |
+| Ethereum Sepolia | RepaymentVault | `0x...` | `https://sepolia.etherscan.io/address/0x...` |
+| Base Sepolia | ImpactToken | `0x...` | `https://sepolia.basescan.org/address/0x...` |
+| Base Sepolia | ImpactAsset1155 | `0x...` | `https://sepolia.basescan.org/address/0x...` |
+| Base Sepolia | RepaymentVault | `0x...` | `https://sepolia.basescan.org/address/0x...` |
+
+### Frontend configuration after deployment
+
+Copy the deployed addresses into `.env.local`:
+
+```bash
+NEXT_PUBLIC_IMPACT_ASSET_ADDRESS=0x...
+NEXT_PUBLIC_IMPACT_TOKEN_ADDRESS=0x...
+NEXT_PUBLIC_MARKET_ROUTER_ADDRESS=0x...
+NEXT_PUBLIC_CHAIN_ID=11155111
+```
+
+For Base Sepolia, switch `NEXT_PUBLIC_CHAIN_ID` to `84532` and use the Base deployment addresses.
 
 ## Demo flow
 
