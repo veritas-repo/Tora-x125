@@ -162,6 +162,13 @@ Next.js dashboard
 
 The current dashboard uses demo data from the frontend data layer. In a production version, headline values and recent activity would be derived from contract events, an indexer, liquidity sources and approved project-data feeds.
 
+**World ID / Uniswap / 1inch implementation details**
+
+- **World ID:** the dashboard can expose verification state alongside the connected wallet. The current `lib/worldid.ts` reads `NEXT_PUBLIC_WORLD_ID_APP_ID` and `NEXT_PUBLIC_WORLD_ID_ACTION` (default action: `verify-investor`). The intended flow is to collect a World ID proof in the client, send it to a server-side verification endpoint, and persist only the resulting eligibility state or nullifier-derived status needed by the app—not identity data onchain.
+- **Uniswap v4:** market cards can display pool-derived liquidity, volume and price data for fungible representations of project assets. The repo already provides `executeUniversalRouter(...)` in `lib/uniswap.ts`, which submits a pre-encoded Universal Router plan using `commands`, `inputs`, `deadline` and optional ETH value.
+- **1inch:** dashboard price discovery can compare aggregated routes across available EVM liquidity. `lib/oneinch.ts` currently builds a v6 quote URL from `chainId`, source token, destination token, amount and optional sender. API credentials should remain server-side behind a Next.js route rather than being exposed in the browser.
+- **Decision logic:** dashboard quotes should be treated as indicative. The executable route is selected only after investor eligibility, token approvals, slippage limits and chain state are revalidated at transaction time.
+
 ---
 
 ### 2. Project verification — `/projects`
@@ -210,6 +217,14 @@ flowchart TD
 
 This flow intentionally separates **verification evidence** from **financial ownership**. The token points to an auditable project record; it does not by itself prove that an impact claim is valid.
 
+**World ID / Uniswap / 1inch implementation details**
+
+- **World ID:** project verification and investor verification are separate. Third-party project validation answers “is this project evidence credible?”, while World ID can answer “has this investor satisfied the privacy-preserving human/eligibility check for this action?”. The intended server-side verifier should validate the proof against the configured app/action before returning an eligibility result to the frontend.
+- **World ID gating:** once verified, Tora-x125 can issue a short-lived server session or an application-level eligibility flag used before allowing restricted actions such as investing, trading, or claiming certain distributions. The World ID proof itself does not need to be embedded in `ImpactAsset1155`.
+- **Uniswap v4:** verified project status can later feed into hook-controlled market rules—for example, allowing a pool or trading path only when an asset is active, verified, or within a defined risk state. The current repo documents this as an architectural extension; the production hook contract is not yet implemented.
+- **1inch:** project verification data is not passed to 1inch. Instead, Tora-x125 performs eligibility and asset-status checks first, then requests routing/quote information only for assets that are permitted to trade.
+- **Separation of concerns:** World ID handles investor verification, project/MRV systems handle asset verification, Uniswap v4 handles programmable liquidity, and 1inch handles route optimisation.
+
 ---
 
 ### 3. Impact analytics — `/impact`
@@ -256,6 +271,13 @@ flowchart LR
 | Nature | 8,240 ha | Habitat or forest protected |
 
 In production, Tora-x125 would preserve the source, methodology, reporting period and verification status for each metric so that portfolio aggregation does not erase the underlying evidence.
+
+**World ID / Uniswap / 1inch implementation details**
+
+- **World ID:** impact analytics should not expose or infer personal identity from verification. The analytics layer only needs an application-level “verified/eligible” state when gating personalised portfolio views or investor-only reporting.
+- **Uniswap v4:** pool events can contribute market-side analytics such as realised swap volume, liquidity depth, fees, price movement and pool utilisation. These should be indexed from the target Ethereum/Base deployment and displayed separately from environmental impact metrics.
+- **1inch:** quote/routing responses can be used to estimate executable portfolio conversion paths and slippage for impact assets. For analytics, these are best treated as point-in-time routing observations rather than canonical market prices.
+- **Attribution model:** environmental impact should be sourced from MRV/project data, while market performance should be sourced from token balances, repayment contracts, Uniswap pool events and routing/quote data. Keeping those sources separate avoids mixing “impact verified” with “market liquid”.
 
 ---
 
@@ -307,6 +329,14 @@ flowchart LR
 
 A production distribution model should use appropriate record-date/snapshot mechanics rather than assuming the current token balance always represents historical entitlement.
 
+**World ID / Uniswap / 1inch implementation details**
+
+- **World ID:** sensitive portfolio actions can require a fresh verification result before execution. A typical flow is `Connect wallet → World ID proof → server verification → eligibility session → enable action`. The app should bind the verified action to the intended purpose and avoid reusing one proof indiscriminately across unrelated actions.
+- **1inch rebalancing:** when an investor requests a rebalance, the server can request 1inch quotes for candidate source/destination pairs, compare expected output, gas and slippage, and return a route preview to the client.
+- **Uniswap v4 execution:** if the chosen path uses the Tora-x125 v4 pool, the frontend prepares or receives encoded Universal Router commands. `executeUniversalRouter` then submits the plan with the connected signer.
+- **Approvals:** ERC-20 settlement assets may require Permit2/token approvals before the Universal Router can spend them. Approval state should be checked before execution and the UI should clearly separate “approve” from “swap”.
+- **Post-trade refresh:** after confirmation, token balances, repayment entitlements, portfolio weights and impact attribution are re-read from the relevant contracts/indexer.
+
 ---
 
 ### 5. Tokenised asset detail — `/assets/emerald-horizons`
@@ -354,6 +384,39 @@ flowchart TD
 The current page demonstrates the interaction and data model. Production execution still requires live pool configuration, Permit2/approval handling, Uniswap v4 command encoding, authenticated 1inch access where used, and appropriate investor/transfer restrictions.
 
 For market liquidity, ERC-1155 project units may require a defined fungible representation or wrapper depending on the chosen pool design.
+
+**World ID / Uniswap / 1inch implementation details**
+
+1. **Eligibility check with World ID**
+   - Client loads `appId` and `action` using `getWorldIdConfig()`.
+   - Investor generates a World ID proof for the configured action.
+   - Proof is sent to a protected server route for verification.
+   - The server returns an eligibility result used to unlock the buy/sell flow.
+   - No personal identity record is written into the project-token contract.
+
+2. **Quote discovery with 1inch**
+   - Tora-x125 converts the entered amount into base units.
+   - The server constructs a v6 quote request using `chainId`, `src`, `dst`, `amount`, and optionally the investor address.
+   - `buildOneInchQuoteUrl()` provides the current adapter boundary.
+   - The server adds the required 1inch authentication header, fetches the quote, validates token addresses/chain, and returns a sanitised quote to the client.
+   - Quotes are refreshed before execution because prices and routes can change between preview and signature.
+
+3. **Execution with Uniswap v4**
+   - Tora-x125 identifies the v4 pool and fungible token representation for the impact asset.
+   - The official Uniswap v4 SDK/contracts are used to encode the `V4_SWAP` actions and any Permit2 commands required by the Universal Router.
+   - The encoded `commands`, `inputs`, and `deadline` are passed into `executeUniversalRouter()`.
+   - MetaMask signs and broadcasts the transaction on Ethereum or Base.
+   - After confirmation, the UI updates ownership, settlement balance, price and portfolio state.
+
+4. **Safety checks before signature**
+   - correct chain ID
+   - supported token addresses
+   - World ID eligibility state where required
+   - allowance / Permit2 status
+   - quote expiry / deadline
+   - minimum output and maximum slippage
+   - current project active/verified status
+   - expected router and pool addresses
 
 ---
 
@@ -407,6 +470,58 @@ flowchart LR
 - **World ID:** privacy-preserving verification boundary before restricted investor actions.
 
 The visible order book is an **illustrative market-depth UI** in the EVM prototype; Uniswap v4 itself is AMM-based rather than a central-limit order book. The separately explored Sui design could use **DeepBook** for a native onchain order-book implementation.
+
+**Detailed trade implementation**
+
+```mermaid
+sequenceDiagram
+    participant U as Investor
+    participant UI as Next.js UI
+    participant W as World ID verifier
+    participant O as Tora server / 1inch
+    participant R as Universal Router
+    participant P as Uniswap v4 Pool
+    participant C as Ethereum / Base
+
+    U->>UI: Connect wallet + choose asset
+    UI->>W: Submit World ID proof
+    W-->>UI: Eligible / not eligible
+    U->>UI: Enter amount
+    UI->>O: Request sanitised quote
+    O->>O: Call 1inch v6 API server-side
+    O-->>UI: Expected output, route, gas/slippage data
+    UI->>UI: Revalidate asset + chain + limits
+    UI->>R: Sign Permit2 / Universal Router transaction
+    R->>P: Execute v4 swap actions
+    P->>C: Settle token + stablecoin balances
+    C-->>UI: Receipt / indexed events
+    UI-->>U: Updated position and market state
+```
+
+**Uniswap v4 implementation path**
+
+- The current helper intentionally does not hand-build low-level v4 calldata. Production code should use the official v4 SDK/contracts to construct the action plan.
+- A fungible market representation is required for a conventional AMM pair; raw ERC-1155 project units may need a wrapper or a different market design.
+- Pool configuration should explicitly define currencies, fee tier, tick spacing and hook address for the target chain.
+- Hook logic can be used for programmable market behaviour, but transfer/eligibility compliance should not rely on a hook alone; the asset/transfer layer must enforce any legally required restrictions.
+- Universal Router and PoolManager addresses must be configured per deployment and verified rather than hard-coded from assumptions.
+- Permit2 should be used where appropriate to minimise repeated approvals while still constraining spend and expiry.
+
+**1inch implementation path**
+
+- 1inch calls should originate from a server route so the API key is not shipped to the browser.
+- The quote request should be chain-specific and use canonical token addresses and integer base-unit amounts.
+- Tora-x125 can compare a 1inch aggregated quote with the direct Tora v4 pool route and expose the expected output, price impact/slippage, and estimated gas before the investor signs.
+- A quote is not a settlement guarantee; the app must apply minimum-output protection and refresh stale quotes.
+- Where 1inch returns transaction data for an executable route, Tora-x125 should validate the destination contract, chain, calldata metadata and token pair before presenting it to the signer.
+
+**World ID implementation path**
+
+- World ID is used before restricted investment/trading actions, not as a substitute for securities KYC/AML or jurisdictional compliance.
+- The client obtains a proof for the configured `appId` and action.
+- The proof is verified server-side and converted into an application-level eligibility/session result.
+- The app can use the nullifier/action semantics to prevent inappropriate proof reuse without storing identity data onchain.
+- If a trade requires stronger regulatory checks, World ID becomes one input into the eligibility decision rather than the sole compliance mechanism.
 
 ---
 
