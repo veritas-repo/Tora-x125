@@ -9,6 +9,7 @@ const nav = [
   { href: "/", label: "Dashboard", icon: "⌂" },
   { href: "/assets/emerald-horizons", label: "Invest", icon: "◒" },
   { href: "/market", label: "Secondary Market", icon: "▥" },
+  { href: "/aqua-position", label: "Aqua Position", icon: "≈" },
   { href: "/impact", label: "Impact", icon: "♧" },
   { href: "/portfolio", label: "Portfolio", icon: "▣" },
   { href: "/analytics", label: "Analytics", icon: "⌁" },
