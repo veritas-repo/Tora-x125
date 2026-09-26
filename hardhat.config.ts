@@ -6,7 +6,7 @@ const accounts = process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVAT
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.25",
+    version: "0.8.30",
     settings: {
       optimizer: { enabled: true, runs: 200 },
       viaIR: true,
