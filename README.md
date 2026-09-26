@@ -115,7 +115,7 @@ The intended demo journey is **Dashboard → Project Verification → Asset Deta
 ### 1. Investor dashboard — `/`
 
 <p align="center">
-  <img src="docs/images/dashboard.svg" alt="Tora-x125 investor dashboard" width="100%" />
+  <img src="docs/images/dashboard.png" alt="Tora-x125 investor dashboard" width="100%" />
 </p>
 
 **Primary user:** Investor, portfolio manager, impact fund, family office, or institutional allocator.
@@ -167,7 +167,7 @@ The current dashboard uses demo data from the frontend data layer. In a producti
 ### 2. Project verification — `/projects`
 
 <p align="center">
-  <img src="docs/images/project-verification.svg" alt="Tora-x125 project verification screen" width="100%" />
+  <img src="docs/images/project-verification.png" alt="Tora-x125 project verification screen" width="100%" />
 </p>
 
 **Primary user:** Investor or due-diligence analyst evaluating whether the underlying real-world project is credible before allocating capital.
@@ -215,7 +215,7 @@ This flow intentionally separates **verification evidence** from **financial own
 ### 3. Impact analytics — `/impact`
 
 <p align="center">
-  <img src="docs/images/impact-analytics.svg" alt="Tora-x125 impact analytics screen" width="100%" />
+  <img src="docs/images/impact-analytics.png" alt="Tora-x125 impact analytics screen" width="100%" />
 </p>
 
 **Primary user:** Investor, ESG/impact team, fund manager, issuer, or reporting stakeholder.
@@ -262,7 +262,7 @@ In production, Tora-x125 would preserve the source, methodology, reporting perio
 ### 4. Portfolio management — `/portfolio`
 
 <p align="center">
-  <img src="docs/images/portfolio.svg" alt="Tora-x125 portfolio management screen" width="100%" />
+  <img src="docs/images/portfolio.png" alt="Tora-x125 portfolio management screen" width="100%" />
 </p>
 
 **Primary user:** Token holder managing several impact assets and stablecoin balances.
@@ -312,7 +312,7 @@ A production distribution model should use appropriate record-date/snapshot mech
 ### 5. Tokenised asset detail — `/assets/emerald-horizons`
 
 <p align="center">
-  <img src="docs/images/asset-detail.svg" alt="Tora-x125 tokenised asset detail screen" width="100%" />
+  <img src="docs/images/asset-detail.png" alt="Tora-x125 tokenised asset detail screen" width="100%" />
 </p>
 
 **Primary user:** Investor making a decision on a specific tokenised impact investment.
@@ -360,7 +360,7 @@ For market liquidity, ERC-1155 project units may require a defined fungible repr
 ### 6. Secondary market — `/market`
 
 <p align="center">
-  <img src="docs/images/secondary-market.svg" alt="Tora-x125 secondary market screen" width="100%" />
+  <img src="docs/images/secondary-market.png" alt="Tora-x125 secondary market screen" width="100%" />
 </p>
 
 **Primary user:** Investor seeking liquidity before an impact investment reaches maturity.
