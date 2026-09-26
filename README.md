@@ -33,7 +33,7 @@ If you have only a few minutes, review the project in this order:
 | Solidity tests | **Implemented + CI passing** | `test/ImpactAsset.js`, GitHub Actions |
 | Ethereum Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
 | Base Sepolia deployment config | **Implemented** | `hardhat.config.ts`, `scripts/deploy.ts` |
-| Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |
+| Uniswap v4 `beforeSwap` impact-market hook | **Implemented + tested** | `contracts/uniswap/ToraImpactHook.sol` |\n| Uniswap v4 CREATE2 permission-bit deployment | **Implemented + tested** | `contracts/uniswap/HookCreate2Factory.sol`, `scripts/deploy-uniswap-hook.ts` |\n| Uniswap Universal Router execution helper | **Implemented** | `lib/uniswap.ts` |\n| Uniswap developer feedback | **Repository feedback complete** | `FEEDBACK.md` |
 | 1inch quote adapter boundary | **Implemented** | `lib/oneinch.ts` |
 | ENS helper | **Implemented** | `lib/ens.ts` |
 | World ID config / verification boundary | **Implemented** | `lib/worldid.ts` |
@@ -79,7 +79,7 @@ If you have only a few minutes, review the project in this order:
 
 **World ID for Agents** — integrated against the official event sandbox issuer `https://sandbox.auth.world.org`. Tora-x125 uses OIDC Authorization Code + PKCE for a fresh human verification, exchanges the code only on the backend, validates the World-signed ID token with JWKS/issuer/audience/nonce/freshness checks, and then issues a short-lived authorization before the protected Trade Agent can proceed.
 
-**Uniswap v4** — used as the programmable liquidity layer. The repo includes an executable Universal Router helper and documents PoolManager, Permit2, pool configuration, liquidity seeding and optional hook logic.
+**Uniswap v4** — implemented as the programmable secondary-liquidity layer. Tora-x125 now includes a real `beforeSwap` hook (`ToraImpactHook`) that enforces per-pool liveness and maximum-swap policy, CREATE2 deployment that mines the correct v4 hook permission bits, official Sepolia/Base Sepolia PoolManager configuration, Hardhat tests, and the existing Universal Router execution helper.
 
 **1inch** — used for route discovery and stablecoin settlement optimisation. The repo contains a v6 quote adapter boundary and documents server-side API authentication, route validation and comparison against a direct Uniswap v4 route.
 
@@ -100,15 +100,20 @@ contracts/
   ImpactAsset1155.sol              tokenised project units
   ImpactToken.sol                  demo ERC-20 settlement asset
   RepaymentVault.sol               project distributions
+  uniswap/
+    ToraImpactHook.sol             Uniswap v4 BEFORE_SWAP market-policy hook
+    HookCreate2Factory.sol         deterministic hook-address deployment
 
 lib/
   uniswap.ts                       Universal Router execution helper
   oneinch.ts                       1inch quote adapter
-  worldid.ts                       client-safe World integration types\n  worldid-server.ts                sandbox OIDC + PKCE + secure ID-token validation
+  worldid.ts                       client-safe World integration types
+  worldid-server.ts                sandbox OIDC + PKCE + secure ID-token validation
   ens.ts                           ENS identity resolution
 
 scripts/
-  deploy.ts                        Sepolia / Base Sepolia deployment
+  deploy.ts                        Tora contract deployment
+  deploy-uniswap-hook.ts           Uniswap v4 hook CREATE2 deployment
 
 .github/workflows/
   ci.yml                           compile + test + build
@@ -123,6 +128,61 @@ scripts/
 | Base Sepolia | 84532 | Ready to deploy; waiting for GitHub `DEPLOYER_PRIVATE_KEY` secret |
 
 The deployment workflow has already been exercised through dependency installation and contract compilation. It intentionally stops before broadcasting if the deployer secret is absent, so no private key is ever committed to the repository.
+
+---
+
+## Uniswap Foundation prize review
+
+Tora-x125 uses **Uniswap v4 core contracts as an actual AMM extension**, not only as a UI reference. The integration is built around a custom `beforeSwap` hook for tokenised impact-asset markets plus Universal Router execution support.
+
+### Code judges can verify directly
+
+| Integration | Relevant source |
+| --- | --- |
+| v4 hook contract | [`ToraImpactHook.sol` — contract and imports, lines 18–48](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/ToraImpactHook.sol#L18-L48) |
+| v4 hook permission declaration | [constructor + `Hooks.Permissions`, lines 51–72](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/ToraImpactHook.sol#L51-L72) |
+| Per-pool impact-market policy | [`setMarketPolicy`, lines 76–96](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/ToraImpactHook.sol#L76-L96) |
+| Judge/tooling policy preview | [`previewSwapPolicy`, lines 100–122](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/ToraImpactHook.sol#L100-L122) |
+| Actual Uniswap v4 callback | [`beforeSwap`, lines 126–151](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/ToraImpactHook.sol#L126-L151) |
+| CREATE2 hook deployment | [`HookCreate2Factory.sol`, lines 7–32](https://github.com/veritas-repo/Tora-x125/blob/main/contracts/uniswap/HookCreate2Factory.sol#L7-L32) |
+| Permission-bit salt mining | [`deploy-uniswap-hook.ts`, lines 42–72](https://github.com/veritas-repo/Tora-x125/blob/main/scripts/deploy-uniswap-hook.ts#L42-L72) |
+| Official testnet PoolManager config | [`deploy-uniswap-hook.ts`, lines 3–6](https://github.com/veritas-repo/Tora-x125/blob/main/scripts/deploy-uniswap-hook.ts#L3-L6) |
+| Universal Router execution | [`lib/uniswap.ts`, lines 37–48](https://github.com/veritas-repo/Tora-x125/blob/main/lib/uniswap.ts#L37-L48) |
+| Hook unit/integration tests | [`ToraImpactHook.js`, lines 71–113](https://github.com/veritas-repo/Tora-x125/blob/main/test/ToraImpactHook.js#L71-L113) |
+| Developer feedback | [`FEEDBACK.md`](https://github.com/veritas-repo/Tora-x125/blob/main/FEEDBACK.md) |
+
+### What the hook does
+
+`ToraImpactHook` enables the **BEFORE_SWAP** callback only. For every configured v4 pool, the owner can set:
+
+- whether the market is active or suspended;
+- a maximum absolute swap size, with `0` meaning no hook-level size cap;
+- a `projectVerificationHash` that commits the pool policy to the reviewed project state.
+
+Before a swap executes, the hook confirms that the caller is the configured Uniswap v4 `PoolManager`, rejects suspended markets, rejects swaps above the configured size limit, and emits `SwapPolicyChecked` for indexing/auditability. It returns zero hook delta, so normal v4 swap math continues unchanged when the policy passes.
+
+### Why CREATE2 is part of the integration
+
+Uniswap v4 determines enabled hook callbacks from the low-order bits of the deployed hook address. The deployment script therefore deploys a small CREATE2 factory, mines a salt whose resulting hook address contains **BEFORE_SWAP and no other callback flags**, and only then deploys `ToraImpactHook`. The hook constructor calls Uniswap's official `Hooks.validateHookPermissions`, so an incorrectly permissioned address fails rather than silently deploying.
+
+### Testnet configuration
+
+The deployment script contains the current PoolManager addresses from Uniswap's official `universal-router` deployment parameters:
+
+| Network | Chain ID | v4 PoolManager |
+| --- | ---: | --- |
+| Ethereum Sepolia | 11155111 | `0xE03A1074c86CFeDd5C142C4F04F1a1536e203543` |
+| Base Sepolia | 84532 | `0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408` |
+
+The shared Permit2 address is also included in `lib/uniswap.ts`. An explicit `UNISWAP_V4_POOL_MANAGER_ADDRESS` environment variable can override the defaults for another deployment.
+
+### Open-source and feedback requirements
+
+- **Repository:** public — https://github.com/veritas-repo/Tora-x125
+- **License:** MIT — see `LICENSE`
+- **Feedback file:** [`FEEDBACK.md`](https://github.com/veritas-repo/Tora-x125/blob/main/FEEDBACK.md)
+- **Uniswap Developer Feedback Form:** https://developers.uniswap.org/hackathon-feedback
+- **Form status:** **pending browser submission**. The repository feedback is ready, but this README intentionally does not claim that the external form has been submitted until submission is confirmed.
 
 ---
 
@@ -780,6 +840,8 @@ After deploying `ImpactToken` and the fungible representation of a project asset
 ```bash
 npm run deploy:sepolia
 npm run deploy:base-sepolia
+npm run deploy:uniswap-hook:sepolia
+npm run deploy:uniswap-hook:base-sepolia
 ```
 
 the asset page can be pointed at those addresses via `.env.local`. Any pool/router address shown to the user should be the actual testnet deployment address, never an assumed production address.
@@ -1082,14 +1144,16 @@ sequenceDiagram
     UI-->>U: Updated position and market state
 ```
 
-**Uniswap v4 implementation path**
+**Uniswap v4 implementation**
 
-- The current helper intentionally does not hand-build low-level v4 calldata. Production code should use the official v4 SDK/contracts to construct the action plan.
-- A fungible market representation is required for a conventional AMM pair; raw ERC-1155 project units may need a wrapper or a different market design.
-- Pool configuration should explicitly define currencies, fee tier, tick spacing and hook address for the target chain.
-- Hook logic can be used for programmable market behaviour, but transfer/eligibility compliance should not rely on a hook alone; the asset/transfer layer must enforce any legally required restrictions.
-- Universal Router and PoolManager addresses must be configured per deployment and verified rather than hard-coded from assumptions.
-- Permit2 should be used where appropriate to minimise repeated approvals while still constraining spend and expiry.
+- **Custom hook implemented:** `contracts/uniswap/ToraImpactHook.sol` imports the official `@uniswap/v4-core` interfaces/types and implements the `beforeSwap` lifecycle callback.
+- **Pool policy:** the hook stores per-`PoolId` liveness, maximum absolute swap amount, and a project-verification hash. Suspended markets or oversized swaps revert before v4 swap execution.
+- **Correct callback bits:** `scripts/deploy-uniswap-hook.ts` mines a CREATE2 salt so the hook address exposes the **BEFORE_SWAP** permission bit and no other hook permissions. The constructor uses `Hooks.validateHookPermissions`.
+- **Tested failure paths:** Hardhat tests prove active-market execution, oversized-swap rejection, disabled-market rejection, and rejection of non-PoolManager callers.
+- **Official testnet configuration:** Sepolia and Base Sepolia PoolManager values are configured from Uniswap's official Universal Router deployment parameters.
+- **Router execution:** `lib/uniswap.ts` retains Universal Router execution via `router.execute(commands, inputs, deadline)` and includes Permit2/testnet metadata.
+- **Asset representation:** a conventional v4 pool still requires a fungible ERC-20 representation; raw ERC-1155 project units need a wrapper or an alternative market design.
+- **Compliance boundary:** hook policy is a market-control layer, not the sole identity/transfer-compliance mechanism.
 
 **1inch implementation path**
 
@@ -1272,9 +1336,15 @@ Allows a project operator to fund per-unit repayments. Token holders can claim d
 
 ### Uniswap v4
 
-Uniswap v4 is the programmable liquidity layer. The architecture is designed to support pools and hooks for dynamic trading logic, including future rules driven by asset risk, liquidity or verification state.
+Uniswap v4 is the programmable liquidity layer. Tora-x125 now contains a concrete v4 extension rather than only an integration boundary:
 
-The repository includes a Universal Router execution helper. Network-specific router and PoolManager addresses are configured at deployment time rather than hard-coded.
+- `ToraImpactHook.sol` implements a **BEFORE_SWAP** policy hook using the official `@uniswap/v4-core` package.
+- per-pool policy can pause/resume a market, cap absolute swap size, and anchor a project-verification hash;
+- `HookCreate2Factory.sol` + `deploy-uniswap-hook.ts` deploy the hook at an address with the correct v4 permission bits;
+- `test/ToraImpactHook.js` exercises both allowed and fail-closed policy paths;
+- `lib/uniswap.ts` provides Sepolia/Base Sepolia PoolManager + Permit2 configuration and Universal Router transaction execution.
+
+The hook deliberately returns zero swap delta: when policy passes, ordinary Uniswap v4 AMM math remains responsible for pricing and settlement.
 
 ### 1inch
 
@@ -1457,6 +1527,9 @@ Required environment variables:
 DEPLOYER_PRIVATE_KEY=0x...
 SEPOLIA_RPC_URL=https://...
 BASE_SEPOLIA_RPC_URL=https://...
+
+# Optional override; otherwise official Sepolia/Base Sepolia PoolManager defaults are used
+UNISWAP_V4_POOL_MANAGER_ADDRESS=0x...
 ```
 
 ### GitHub Actions deployment workflow
@@ -1539,4 +1612,4 @@ npm run deploy:base-sepolia
 
 ## License
 
-Hackathon prototype. Add a production license before commercial deployment.
+MIT. See [LICENSE](LICENSE).
