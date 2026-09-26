@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/tora-x125-logo.svg" alt="Tora-x125" width="220" />
+</p>
+
 # Tora-x125
 
 **A secondary market for verified, tokenised impact investments.**
@@ -80,6 +84,73 @@ Ethereum / Base smart contracts
 - Ethereum Sepolia and Base Sepolia deployment configuration
 - Hardhat contract tests and GitHub Actions CI
 - Documentation of the explored Sui / Move / zkLogin / DeepBook architecture
+
+## Product use cases
+
+The frontend now implements six hackathon demo views based on the supplied Tora-x125 product concepts. They share the Tora-x125 visual identity, sidebar navigation and wallet connection.
+
+### 1. Investor dashboard — `/`
+
+**Use case:** Give an investor a single overview of tokenised assets, trading activity and verified impact.
+
+- Total tokenised assets, trading volume, verified CO₂e and active investors
+- Featured green bonds, renewable-energy projects and carbon-removal assets
+- Market overview with prices and 24-hour movement
+- Recent activity and impact highlights
+- Entry points into asset details and the secondary market
+
+### 2. Project verification — `/projects`
+
+**Use case:** Show why an impact asset is trustworthy before an investor buys it.
+
+- Project overview and location
+- Due-diligence checklist including KYC/AML, methodology and issuance approval
+- Onchain audit trail for project creation, document anchoring, audits, MRV updates and token minting
+- Impact and MRV metrics
+- Verification/compliance status and third-party validation
+
+### 3. Impact analytics — `/impact`
+
+**Use case:** Let investors measure financial value alongside real-world outcomes.
+
+- Portfolio value and aggregate verified impact
+- Renewable capacity, households powered and habitat protected
+- Portfolio allocation by asset type
+- Impact-over-time visualisation
+- Asset-level impact attribution and global project coverage
+
+### 4. Portfolio management — `/portfolio`
+
+**Use case:** Manage holdings, balances, distributions and portfolio actions in one place.
+
+- Portfolio value, total return, yield earned and impact generated
+- Token and stablecoin balances
+- Upcoming coupons and distributions
+- Verified holdings with returns and impact data
+- Deposit, withdrawal, rebalancing and reward actions
+
+### 5. Tokenised asset detail — `/assets/emerald-horizons`
+
+**Use case:** Provide an investment-grade view of one tokenised green asset.
+
+- Asset classification, issuer, token price, yield, maturity and supply
+- Price chart and buy/sell interaction
+- Impact metrics linked to the project
+- Project overview and repayment summary
+- Token information, secondary-market status and investor-verification requirement
+
+### 6. Secondary market — `/market`
+
+**Use case:** Demonstrate programmable liquidity and trading for impact assets.
+
+- Multi-asset market ticker and market table
+- Buy/sell order interaction
+- Illustrative market chart, order book and recent trades
+- Liquidity, spread, volume and volatility metrics
+- Uniswap v4 positioned as the programmable liquidity layer
+- 1inch positioned as the routing and stablecoin-settlement optimiser
+
+The data shown in these screens is illustrative hackathon/demo data. Production deployments should replace it with indexed onchain state, verified MRV feeds, market APIs and authenticated investor data.
 
 ## Smart contracts
 
