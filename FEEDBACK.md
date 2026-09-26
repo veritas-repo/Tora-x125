@@ -6,7 +6,7 @@ Feedback file: https://github.com/veritas-repo/Tora-x125/blob/main/FEEDBACK.md
 
 Developer Feedback Form: https://developers.uniswap.org/hackathon-feedback
 
-> **Submission status:** the repository-side feedback is complete. The external Uniswap Developer Feedback Form must still be submitted with the FEEDBACK.md URL above. Do not mark the form complete until the browser submission has been confirmed.
+> **Submission status:** **Submitted.** The Uniswap Developer Feedback Form has been completed and submitted with this `FEEDBACK.md` link.
 
 ## What we built with Uniswap
 
