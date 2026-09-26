@@ -11,6 +11,23 @@ export type UniversalRouterExecution = {
   value?: bigint;
 };
 
+export const UNISWAP_V4_TESTNETS = {
+  11155111: {
+    name: "Ethereum Sepolia",
+    poolManager: "0xE03A1074c86CFeDd5C142C4F04F1a1536e203543",
+    permit2: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+  },
+  84532: {
+    name: "Base Sepolia",
+    poolManager: "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408",
+    permit2: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+  }
+} as const;
+
+export function getUniswapV4TestnetConfig(chainId: number) {
+  return UNISWAP_V4_TESTNETS[chainId as keyof typeof UNISWAP_V4_TESTNETS];
+}
+
 /**
  * Executes a pre-encoded Uniswap Universal Router plan.
  *
@@ -31,8 +48,12 @@ export async function executeUniversalRouter(
 }
 
 export const UNISWAP_V4_NOTES = {
-  integration: "Universal Router",
-  purpose: "Route secondary-market swaps after project units have a fungible pool representation",
+  integration: "Uniswap v4 PoolManager + ToraImpactHook + Universal Router",
+  hook: "contracts/uniswap/ToraImpactHook.sol",
+  purpose:
+    "Programmable secondary-market liquidity with per-pool liveness and maximum-swap policy checks",
+  execution:
+    "Universal Router plan execution after application eligibility and route checks",
   productionRequirement:
     "Encode Permit2 + V4_SWAP commands using official Uniswap v4 SDK/contracts for the target chain."
 };
