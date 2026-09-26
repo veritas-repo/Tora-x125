@@ -23,7 +23,8 @@
     "jose": "^5.10.0",
     "@uniswap/v4-core": "^1.0.2",
     "@1inch/swap-vm": "github:1inch/swap-vm#feb16411738331f7d05ae71d4a664154068018fc",
-    "@1inch/aqua": "github:1inch/aqua#v1.0.0"
+    "@1inch/aqua": "github:1inch/aqua#v1.0.0",
+    "@1inch/solidity-utils": "6.9.10"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
