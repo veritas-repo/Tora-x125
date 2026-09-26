@@ -1,0 +1,39 @@
+name: Convert docs images to PNG
+
+on:
+  push:
+    paths:
+      - ".github/workflows/convert-doc-images.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SVG renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+
+      - name: Convert documentation images
+        run: |
+          set -euo pipefail
+          for f in docs/images/*.svg; do
+            out="${f%.svg}.png"
+            rsvg-convert -w 1672 -h 941 "$f" -o "$out"
+          done
+          rm docs/images/*.svg
+          sed -i 's#docs/images/\([^" )]*\)\.svg#docs/images/\1.png#g' README.md
+          rm .github/workflows/convert-doc-images.yml
+
+      - name: Commit PNG images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/images .github/workflows/convert-doc-images.yml
+          git commit -m "docs: convert product images from SVG to PNG"
+          git push
