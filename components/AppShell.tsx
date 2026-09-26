@@ -12,7 +12,7 @@ const nav = [
   { href: "/impact", label: "Impact", icon: "♧" },
   { href: "/portfolio", label: "Portfolio", icon: "▣" },
   { href: "/analytics", label: "Analytics", icon: "⌁" },
-  { href: "/projects", label: "Projects", icon: "▦" }
+  { href: "/projects", label: "Projects", icon: "▦" },\n  { href: "/world-agents", label: "World Agent", icon: "◎" }
 ];
 
 declare global {
