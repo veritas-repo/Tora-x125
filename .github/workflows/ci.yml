@@ -16,4 +16,5 @@ jobs:
       - run: npm install
       - run: npm run contracts:compile
       - run: npm run contracts:test
+      - run: npm run demo:aqua
       - run: npm run build
