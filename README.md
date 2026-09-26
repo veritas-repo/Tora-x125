@@ -1,52 +1,93 @@
 # Tora-x125
 
-A secondary market MVP for verified impact investments, built for ETHGlobal Tokyo 2026.
+**A secondary market for verified, tokenised impact investments.**
 
-Tora-x125 tokenises impact assets such as green bonds, renewable-energy projects and carbon-removal projects, exposes impact/risk/repayment information to investors, and provides an integration boundary for secondary-market liquidity through Uniswap v4.
+Tora-x125 is built around tokenised impact assets and programmable secondary liquidity. We use smart contracts to fractionalise green investments into tradable tokens, with project, financial and impact data linked onchain. Uniswap v4 provides liquidity pools and hooks for dynamic trading logic, while 1inch optimises swap routing and stablecoin settlement. ENS gives projects and issuers readable identities, and World ID supports privacy-preserving investor verification.
 
-## What is included
+The core implementation targets **Ethereum and Base**. We also explored a **Sui** implementation using Move, zkLogin and DeepBook as an alternative high-performance secondary-market architecture.
 
-- Next.js + TypeScript investor dashboard
-- EIP-1193 wallet connection using ethers.js
-- ERC-1155 project-unit tokenisation
-- ERC-20 demo settlement/liquidity token
-- Repayment vault for project distributions
-- Uniswap v4 / Universal Router integration boundary
-- Hardhat deployment script for Sepolia
-- Contract tests and GitHub Actions CI
+## Hackathon stack
+
+### Ethereum developer tools
+
+- Solidity
+- OpenZeppelin
+- Uniswap v4
+- ethers.js / viem-compatible EVM interfaces
+- MetaMask / EIP-1193 wallets
+- Ethereum testnets
+
+### Blockchain networks
+
+- Ethereum
+- Base
+
+### Programming languages
+
+- Solidity
+- TypeScript
+- JavaScript
 
 ## Architecture
 
 ```text
-Investor wallet
-     |
-     v
-Next.js dashboard
-     |
-     +---- reads project / market metadata
-     |
-     +---- Ethereum provider (ethers.js)
-                 |
-                 +---- ImpactAsset1155
-                 |       fractional project units
-                 |
-                 +---- ImpactToken
-                 |       demo settlement / quote token
-                 |
-                 +---- RepaymentVault
-                 |       project distributions
-                 |
-                 +---- Uniswap Universal Router / v4
-                         secondary-market routing layer
+Investor / issuer
+      |
+      +---- MetaMask / EIP-1193 wallet
+      |
+      +---- World ID
+      |       privacy-preserving investor verification
+      |
+      v
+Next.js / TypeScript dashboard
+      |
+      +---- ENS
+      |       readable issuer and project identities
+      |
+      +---- Project, financial and impact data
+      |       linked to tokenised assets onchain
+      |
+      v
+Ethereum / Base smart contracts
+      |
+      +---- ImpactAsset1155
+      |       fractional project units
+      |
+      +---- ImpactToken
+      |       demo ERC-20 settlement asset
+      |
+      +---- RepaymentVault
+      |       programmable project distributions
+      |
+      +---- Uniswap v4
+      |       liquidity pools + programmable hooks
+      |
+      +---- 1inch
+              route optimisation + stablecoin settlement
 ```
 
-### Contracts
+## What is included
 
-**ImpactAsset1155.sol**
+- Next.js + TypeScript investor dashboard
+- EIP-1193 / MetaMask wallet connection using ethers.js
+- ERC-1155 project-unit tokenisation
+- ERC-20 demo settlement/liquidity token
+- Repayment vault for project distributions
+- Uniswap v4 / Universal Router execution helper
+- 1inch routing integration adapter
+- ENS name-resolution helper
+- World ID integration configuration boundary
+- Ethereum Sepolia and Base Sepolia deployment configuration
+- Hardhat contract tests and GitHub Actions CI
+- Documentation of the explored Sui / Move / zkLogin / DeepBook architecture
 
-Each project is represented by an ERC-1155 token ID. Units can represent fractional ownership or economic exposure to an underlying impact investment.
+## Smart contracts
 
-Stored metadata includes:
+### ImpactAsset1155.sol
+
+Each verified impact project is represented by an ERC-1155 token ID. Units can represent fractional ownership or economic exposure to an underlying impact investment.
+
+Linked project data includes:
 
 - project name and type
 - location
@@ -57,43 +98,62 @@ Stored metadata includes:
 - risk score
 - active status
 
-**ImpactToken.sol**
+### ImpactToken.sol
 
-ERC-20 demo settlement token (`TID`) used to represent quote-side liquidity in the MVP.
+ERC-20 demo settlement token (`TID`) representing quote-side liquidity for the MVP.
 
-**RepaymentVault.sol**
+### RepaymentVault.sol
 
-Allows the project operator to fund per-unit repayments. Token holders can claim distributions based on their ERC-1155 balance.
+Allows a project operator to fund per-unit repayments. Token holders can claim distributions based on their ERC-1155 holdings.
+
+## Secondary liquidity
 
 ### Uniswap v4
 
-The MVP is structured to route secondary-market liquidity through the Uniswap Universal Router and v4 command path.
+Uniswap v4 is the programmable liquidity layer. The architecture is designed to support pools and hooks for dynamic trading logic, including future rules driven by asset risk, liquidity or verification state.
 
-The repository deliberately does not hard-code a Universal Router or PoolManager address because these are network-specific. Configure the testnet deployment using:
+The repository includes a Universal Router execution helper. Network-specific router and PoolManager addresses are configured at deployment time rather than hard-coded.
 
-```bash
-NEXT_PUBLIC_UNISWAP_UNIVERSAL_ROUTER_ADDRESS=
-```
+### 1inch
 
-The current UI exposes the v4 trading layer as a demo integration boundary. For production trading, encode Permit2 + `V4_SWAP` commands using the official Uniswap v4 SDK/contracts for the chosen network, then submit the route from the connected wallet.
+The 1inch adapter provides a routing boundary for finding efficient swap paths and stablecoin settlement across available EVM liquidity.
 
-A practical production architecture is:
+For the hackathon MVP, 1inch and Uniswap v4 are complementary:
 
-```text
-ERC-1155 project units
-        |
-        v
-fungible pool representation / wrapper
-        |
-        v
-Permit2
-        |
-        v
-Universal Router
-        |
-        v
-Uniswap v4 PoolManager
-```
+- **Uniswap v4** — primary programmable liquidity and hook logic
+- **1inch** — route optimisation across available swap liquidity
+
+## Identity and verification
+
+### ENS
+
+ENS is used as the readable identity layer for issuers, projects and counterparties. The frontend helper resolves ENS names through the connected EVM provider.
+
+### World ID
+
+World ID is the privacy-preserving investor-verification layer. The current repository exposes the application/action configuration boundary so the frontend can add proof verification without embedding personal identity data into the project-token contract.
+
+## Networks
+
+The core EVM implementation is designed for:
+
+- **Ethereum** — primary smart-contract and liquidity ecosystem
+- **Base** — low-cost EVM execution and secondary-market deployment
+
+Testnet configuration is provided for:
+
+- Ethereum Sepolia
+- Base Sepolia
+
+## Explored Sui architecture
+
+We also explored an alternative implementation using:
+
+- **Move** for asset and market logic
+- **zkLogin** for wallet onboarding
+- **DeepBook** for high-performance onchain order-book liquidity
+
+This is an explored architecture rather than the primary implementation in this repository.
 
 ## Local setup
 
@@ -135,7 +195,7 @@ npm run contracts:test
 npm run build
 ```
 
-## Sepolia deployment
+## Testnet deployment
 
 Copy the environment template:
 
@@ -143,51 +203,41 @@ Copy the environment template:
 cp .env.example .env
 ```
 
-Set:
-
-```bash
-SEPOLIA_RPC_URL=
-DEPLOYER_PRIVATE_KEY=
-NEXT_PUBLIC_CHAIN_ID=11155111
-```
-
-Then deploy:
+### Ethereum Sepolia
 
 ```bash
 npm run deploy:sepolia
 ```
 
-The script deploys:
+### Base Sepolia
+
+```bash
+npm run deploy:base-sepolia
+```
+
+The deployment script creates:
 
 1. `ImpactToken`
 2. `ImpactAsset1155`
 3. `RepaymentVault`
-4. one sample project: **Tokyo Bay Solar Bond**
-
-Copy the deployed contract addresses into `.env.local` for the frontend.
+4. sample project: **Tokyo Bay Solar Bond**
 
 ## Demo flow
 
-1. Connect a wallet.
-2. Browse tokenised impact investments.
-3. Select a project to inspect yield, maturity, impact, risk and repayment data.
-4. Use the secondary-trade action to demonstrate the Uniswap v4 liquidity path.
-5. On Sepolia, deploy the contracts and replace demo data with live contract reads.
+1. Connect MetaMask.
+2. Browse verified tokenised impact investments.
+3. Inspect project, financial, impact, risk and repayment information.
+4. Resolve readable issuer/project identity through ENS.
+5. Verify investor eligibility through the World ID integration boundary.
+6. Preview programmable liquidity through Uniswap v4.
+7. Use the 1inch adapter for optimised routing / settlement.
+8. Deploy the same EVM contracts to Ethereum Sepolia or Base Sepolia.
 
 ## MVP scope
 
-The current version is a hackathon MVP. It demonstrates the tokenisation, investor information model, wallet UX, repayment model and Uniswap-v4 integration architecture.
+Tora-x125 is a hackathon MVP demonstrating the architecture for a secondary market in verified, tokenised impact investments.
 
-Before production use, add:
-
-- audited issuance and transfer restrictions
-- identity / investor eligibility controls where required
-- a defined ERC-1155-to-fungible liquidity representation
-- production Permit2 + Universal Router transaction encoding
-- oracle-backed pricing and verified impact data
-- contract indexing
-- robust repayment snapshots or record-date mechanics
-- smart-contract security review
+Before production use, add audited transfer restrictions, regulatory/eligibility controls, production Uniswap v4 hook logic, production 1inch API execution, server-side World ID proof verification, verified impact-data oracles, indexing, robust repayment snapshots and a smart-contract security review.
 
 ## Commands
 
@@ -197,6 +247,7 @@ npm run build
 npm run contracts:compile
 npm run contracts:test
 npm run deploy:sepolia
+npm run deploy:base-sepolia
 ```
 
 ## License
