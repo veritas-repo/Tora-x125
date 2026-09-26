@@ -39,8 +39,8 @@ If you have only a few minutes, review the project in this order:
 | Uniswap developer feedback | **Repository feedback complete** | `FEEDBACK.md` |
 | 1inch quote adapter boundary | **Implemented** | `lib/oneinch.ts` |
 | ENS helper | **Implemented** | `lib/ens.ts` |
-| World ID config / verification boundary | **Implemented** | `lib/worldid.ts` |
-| Production World ID proof verifier | **Design / next step** | documented below |
+| World ID for Agents sandbox OIDC integration | **Implemented** | `lib/worldid-server.ts`, `app/api/world/*` |
+| Secure backend World ID-token validation | **Implemented** | `lib/worldid-server.ts` |
 | Live Uniswap v4 pool + seeded test liquidity | **Design / next step** | documented below |
 | Live 1inch authenticated execution | **Design / next step** | documented below |
 | Sui / Move / zkLogin / DeepBook version | **Explored architecture** | README documentation |
