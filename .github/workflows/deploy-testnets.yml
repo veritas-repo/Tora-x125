@@ -1,0 +1,60 @@
+name: Deploy testnets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/deploy-testnets.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run contracts:compile
+
+      - name: Check deployer secret
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+        run: |
+          if [ -z "$DEPLOYER_PRIVATE_KEY" ]; then
+            echo "DEPLOYER_PRIVATE_KEY repository secret is missing."
+            exit 1
+          fi
+
+      - name: Deploy Ethereum Sepolia
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+        run: |
+          if [ -z "$SEPOLIA_RPC_URL" ]; then
+            export SEPOLIA_RPC_URL="https://ethereum-sepolia-rpc.publicnode.com"
+          fi
+          npm run deploy:sepolia | tee sepolia-deploy.log
+
+      - name: Deploy Base Sepolia
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+        run: |
+          if [ -z "$BASE_SEPOLIA_RPC_URL" ]; then
+            export BASE_SEPOLIA_RPC_URL="https://sepolia.base.org"
+          fi
+          npm run deploy:base-sepolia | tee base-sepolia-deploy.log
+
+      - name: Upload deployment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testnet-deployment-logs
+          path: |
+            sepolia-deploy.log
+            base-sepolia-deploy.log
+          if-no-files-found: ignore
