@@ -87,70 +87,363 @@ Ethereum / Base smart contracts
 
 ## Product use cases
 
-The frontend now implements six hackathon demo views based on the supplied Tora-x125 product concepts. They share the Tora-x125 visual identity, sidebar navigation and wallet connection.
+The six product views below describe an end-to-end investor journey for verified, tokenised impact investments. Together they show how Tora-x125 connects **project verification**, **tokenisation**, **secondary liquidity**, **portfolio management**, and **measurable impact** in one product experience.
+
+### End-to-end workflow
+
+```mermaid
+flowchart LR
+    A[Discover assets] --> B[Review project verification]
+    B --> C[Evaluate tokenised asset]
+    C --> D{Investment path}
+    D -->|Primary investment| E[Acquire project tokens]
+    D -->|Secondary market| F[Quote and trade]
+    F --> G[Uniswap v4 liquidity]
+    F --> H[1inch route optimisation]
+    E --> I[Portfolio]
+    G --> I
+    H --> I
+    I --> J[Repayments and distributions]
+    I --> K[Impact analytics]
+    K --> B
+```
+
+The intended demo journey is **Dashboard → Project Verification → Asset Detail → Secondary Market → Portfolio → Impact Analytics**. The screens use illustrative hackathon data; production deployments would replace that data with indexed onchain state, verified MRV feeds, market APIs, authenticated investor information, and production transaction execution.
+
+---
 
 ### 1. Investor dashboard — `/`
 
-**Use case:** Give an investor a single overview of tokenised assets, trading activity and verified impact.
+<p align="center">
+  <img src="docs/images/dashboard.svg" alt="Tora-x125 investor dashboard" width="100%" />
+</p>
 
-- Total tokenised assets, trading volume, verified CO₂e and active investors
-- Featured green bonds, renewable-energy projects and carbon-removal assets
-- Market overview with prices and 24-hour movement
-- Recent activity and impact highlights
-- Entry points into asset details and the secondary market
+**Primary user:** Investor, portfolio manager, impact fund, family office, or institutional allocator.
+
+**Goal:** Give the investor a fast overview of the available market before they decide what to investigate or trade. The dashboard combines financial activity with verified impact rather than treating sustainability data as a separate report.
+
+**What the screen demonstrates**
+
+- Market-level KPIs: total tokenised assets, 24-hour trading volume, verified impact and active investors.
+- Featured assets across green bonds, renewable-energy projects and carbon-removal assets.
+- Current token prices, market movement and liquidity indicators.
+- Recent buy/listing activity.
+- Impact highlights such as verified CO₂e and protected habitat.
+- A persistent wallet connection and navigation into project verification, asset details, portfolio and secondary-market views.
+
+**Investor workflow**
+
+```mermaid
+flowchart LR
+    A[Open Tora-x125] --> B[Connect MetaMask]
+    B --> C[Read market + impact KPIs]
+    C --> D[Browse featured assets]
+    D --> E[Compare price, yield, liquidity and impact]
+    E --> F[Open asset detail]
+    E --> G[Open project verification]
+    F --> H[Invest or trade]
+    G --> F
+```
+
+**Technology / data flow**
+
+```text
+MetaMask / EIP-1193
+        |
+        v
+Next.js dashboard
+        |
+        +--> ethers.js / viem-compatible EVM reads
+        +--> Ethereum / Base token balances and events
+        +--> ENS-readable issuer/project identities
+        +--> Indexed price / liquidity data
+        +--> Verified MRV / impact data
+```
+
+The current dashboard uses demo data from the frontend data layer. In a production version, headline values and recent activity would be derived from contract events, an indexer, liquidity sources and approved project-data feeds.
+
+---
 
 ### 2. Project verification — `/projects`
 
-**Use case:** Show why an impact asset is trustworthy before an investor buys it.
+<p align="center">
+  <img src="docs/images/project-verification.svg" alt="Tora-x125 project verification screen" width="100%" />
+</p>
 
-- Project overview and location
-- Due-diligence checklist including KYC/AML, methodology and issuance approval
-- Onchain audit trail for project creation, document anchoring, audits, MRV updates and token minting
-- Impact and MRV metrics
-- Verification/compliance status and third-party validation
+**Primary user:** Investor or due-diligence analyst evaluating whether the underlying real-world project is credible before allocating capital.
+
+**Goal:** Make the provenance of an impact asset visible. The investor should be able to understand what was reviewed, who validated it, what impact methodology is being used, and which records have been anchored onchain.
+
+**What the screen demonstrates**
+
+- Project description, location, project category and token identity.
+- Due-diligence checklist covering legal structure, KYC/AML, methodology review, third-party validation and token issuance approval.
+- Onchain audit trail for project creation, document anchoring, audit verification, impact-data updates and token minting.
+- MRV metrics such as carbon removed, forest protected, households supported and biodiversity indicators.
+- Verification and compliance status.
+- Links between real-world project evidence and token issuance.
+
+**Verification workflow**
+
+```mermaid
+flowchart TD
+    A[Issuer registers project] --> B[Create project record]
+    B --> C[Upload / reference project documents]
+    C --> D[Anchor hashes or metadata URI onchain]
+    D --> E[Legal + KYC/AML review]
+    E --> F[Methodology / MRV review]
+    F --> G[Independent validation]
+    G --> H[Token issuance approval]
+    H --> I[Mint tokenised project units]
+    I --> J[Publish audit trail to investor UI]
+    J --> K[Continue MRV updates during project life]
+```
+
+**Onchain and partner touchpoints**
+
+- **Solidity + OpenZeppelin:** project-token and access-control logic.
+- **ImpactAsset1155:** fractional project units linked to project metadata.
+- **ENS:** human-readable identity for issuers and projects.
+- **World ID:** privacy-preserving investor verification boundary where an eligibility proof is appropriate.
+- **External validators / MRV providers:** provide signed or auditable evidence; only references/hashes need to be anchored onchain.
+- **Ethereum / Base:** immutable event and metadata-reference layer.
+
+This flow intentionally separates **verification evidence** from **financial ownership**. The token points to an auditable project record; it does not by itself prove that an impact claim is valid.
+
+---
 
 ### 3. Impact analytics — `/impact`
 
-**Use case:** Let investors measure financial value alongside real-world outcomes.
+<p align="center">
+  <img src="docs/images/impact-analytics.svg" alt="Tora-x125 impact analytics screen" width="100%" />
+</p>
 
-- Portfolio value and aggregate verified impact
-- Renewable capacity, households powered and habitat protected
-- Portfolio allocation by asset type
-- Impact-over-time visualisation
-- Asset-level impact attribution and global project coverage
+**Primary user:** Investor, ESG/impact team, fund manager, issuer, or reporting stakeholder.
+
+**Goal:** Show financial performance and real-world outcomes in the same portfolio view, so an investor can answer both “How is my investment performing?” and “What measurable impact is associated with my holdings?”
+
+**What the screen demonstrates**
+
+- Portfolio value and aggregate verified impact.
+- Renewable-energy capacity, households powered and habitat protected.
+- Portfolio allocation by impact-asset type.
+- Impact-over-time visualisation.
+- Asset-level impact attribution.
+- Geographic coverage across projects and countries.
+- Verification/compliance status for reported impact.
+
+**Impact-data workflow**
+
+```mermaid
+flowchart LR
+    A[Project activity] --> B[MRV / third-party data]
+    B --> C[Validate + timestamp]
+    C --> D[Anchor reference / hash onchain]
+    D --> E[Index project + token data]
+    F[Investor token balances] --> E
+    E --> G[Attribute impact to holdings]
+    G --> H[Aggregate portfolio metrics]
+    H --> I[Impact dashboard + reporting]
+```
+
+**Example metrics**
+
+| Category | Example display | Data concept |
+| --- | --- | --- |
+| Carbon | 328,450 tCO₂e | Avoided or removed emissions |
+| Renewable energy | 85.4 MW | Installed / attributable capacity |
+| Social | 142,300 households | Beneficiary or access metric |
+| Nature | 8,240 ha | Habitat or forest protected |
+
+In production, Tora-x125 would preserve the source, methodology, reporting period and verification status for each metric so that portfolio aggregation does not erase the underlying evidence.
+
+---
 
 ### 4. Portfolio management — `/portfolio`
 
-**Use case:** Manage holdings, balances, distributions and portfolio actions in one place.
+<p align="center">
+  <img src="docs/images/portfolio.svg" alt="Tora-x125 portfolio management screen" width="100%" />
+</p>
 
-- Portfolio value, total return, yield earned and impact generated
-- Token and stablecoin balances
-- Upcoming coupons and distributions
-- Verified holdings with returns and impact data
-- Deposit, withdrawal, rebalancing and reward actions
+**Primary user:** Token holder managing several impact assets and stablecoin balances.
+
+**Goal:** Provide one place to understand positions, returns, cash flows and impact exposure after the investor has acquired tokenised assets.
+
+**What the screen demonstrates**
+
+- Total portfolio value, return, yield earned and real-world impact generated.
+- Allocation across green bonds, renewable energy, carbon removal and infrastructure.
+- Wallet balances for USDC and project tokens.
+- Upcoming coupons, yields and project distributions.
+- Verified portfolio holdings.
+- Deposit, withdrawal, rebalancing and reward/repayment actions.
+
+**Portfolio workflow**
+
+```mermaid
+flowchart LR
+    A[Connect wallet] --> B[Read token + stablecoin balances]
+    B --> C[Load market values]
+    C --> D[Calculate portfolio allocation]
+    B --> E[Read repayment entitlements]
+    E --> F[Show upcoming payouts]
+    F --> G[Claim distribution]
+    D --> H{Portfolio action}
+    H --> I[Deposit / withdraw]
+    H --> J[Rebalance]
+    J --> K[1inch route optimisation]
+    K --> L[Uniswap v4 / available liquidity]
+    L --> B
+```
+
+**Smart-contract mapping**
+
+- **ImpactAsset1155:** investor project-unit balances.
+- **ImpactToken / stablecoin settlement:** quote-side and settlement assets for the MVP.
+- **RepaymentVault:** programmable distributions based on token holdings.
+- **Ethereum / Base explorer links:** transaction and token-history traceability.
+- **1inch:** intended route optimisation for portfolio rebalancing.
+- **Uniswap v4:** intended programmable liquidity for supported market pairs.
+
+A production distribution model should use appropriate record-date/snapshot mechanics rather than assuming the current token balance always represents historical entitlement.
+
+---
 
 ### 5. Tokenised asset detail — `/assets/emerald-horizons`
 
-**Use case:** Provide an investment-grade view of one tokenised green asset.
+<p align="center">
+  <img src="docs/images/asset-detail.svg" alt="Tora-x125 tokenised asset detail screen" width="100%" />
+</p>
 
-- Asset classification, issuer, token price, yield, maturity and supply
-- Price chart and buy/sell interaction
-- Impact metrics linked to the project
-- Project overview and repayment summary
-- Token information, secondary-market status and investor-verification requirement
+**Primary user:** Investor making a decision on a specific tokenised impact investment.
+
+**Goal:** Bring the information needed to assess and transact in a single asset into one page: financial terms, token supply, issuer identity, project impact, verification status, repayment logic and market access.
+
+**What the screen demonstrates**
+
+- Token price, estimated yield, maturity, total issuance and remaining supply.
+- Issuer and project classification.
+- Asset price history.
+- Buy/sell interaction.
+- Renewable-energy, carbon, nature and social impact metrics.
+- Project overview and use of proceeds.
+- Coupon / repayment terms.
+- Token standard, market status and investor-verification requirement.
+
+**Asset-investment workflow**
+
+```mermaid
+flowchart TD
+    A[Open asset] --> B[Load token + project metadata]
+    B --> C[Resolve issuer identity with ENS]
+    C --> D[Review price, yield, maturity and supply]
+    D --> E[Review project verification + impact]
+    E --> F[Investor eligibility / World ID boundary]
+    F --> G{Buy or sell?}
+    G --> H[Request market quote]
+    H --> I[1inch route comparison]
+    I --> J[Prepare Uniswap v4 / router transaction]
+    J --> K[Permit / approval]
+    K --> L[Wallet signs transaction]
+    L --> M[Settlement + ownership update]
+    M --> N[Portfolio refresh]
+```
+
+**Implementation boundary**
+
+The current page demonstrates the interaction and data model. Production execution still requires live pool configuration, Permit2/approval handling, Uniswap v4 command encoding, authenticated 1inch access where used, and appropriate investor/transfer restrictions.
+
+For market liquidity, ERC-1155 project units may require a defined fungible representation or wrapper depending on the chosen pool design.
+
+---
 
 ### 6. Secondary market — `/market`
 
-**Use case:** Demonstrate programmable liquidity and trading for impact assets.
+<p align="center">
+  <img src="docs/images/secondary-market.svg" alt="Tora-x125 secondary market screen" width="100%" />
+</p>
 
-- Multi-asset market ticker and market table
-- Buy/sell order interaction
-- Illustrative market chart, order book and recent trades
-- Liquidity, spread, volume and volatility metrics
-- Uniswap v4 positioned as the programmable liquidity layer
-- 1inch positioned as the routing and stablecoin-settlement optimiser
+**Primary user:** Investor seeking liquidity before an impact investment reaches maturity.
 
-The data shown in these screens is illustrative hackathon/demo data. Production deployments should replace it with indexed onchain state, verified MRV feeds, market APIs and authenticated investor data.
+**Goal:** Turn normally illiquid green investments into discoverable, priceable and tradable digital assets while keeping the underlying project and impact information attached to the investment experience.
+
+**What the screen demonstrates**
+
+- Multi-asset ticker for green bonds, solar projects, carbon credits, water infrastructure and wind assets.
+- Market price, daily movement, volume and liquidity.
+- Buy/sell order entry.
+- Market-depth / order-book visualisation and recent trades.
+- AMM liquidity metrics such as pool liquidity and spread.
+- Stablecoin-denominated settlement.
+- A unified route from market discovery to transaction execution.
+
+**EVM secondary-market workflow**
+
+```mermaid
+flowchart LR
+    A[Select tokenised asset] --> B[Enter buy / sell amount]
+    B --> C[Check investor eligibility]
+    C --> D[Fetch liquidity + quote]
+    D --> E[1inch evaluates routes]
+    D --> F[Uniswap v4 pool state]
+    F --> G[v4 hook / trading rules]
+    E --> H[Choose execution path]
+    G --> H
+    H --> I[Permit2 / token approval]
+    I --> J[MetaMask signs]
+    J --> K[Swap executes on Ethereum / Base]
+    K --> L[Stablecoin / token settlement]
+    L --> M[Events indexed]
+    M --> N[Market + portfolio UI refresh]
+```
+
+**How the liquidity components fit together**
+
+- **Uniswap v4:** primary programmable AMM layer. Hooks can support future asset-specific rules or market logic.
+- **1inch:** routing layer for finding efficient paths and stablecoin settlement across available EVM liquidity.
+- **MetaMask + ethers.js:** wallet signing and transaction submission.
+- **Ethereum / Base:** settlement networks.
+- **ENS:** readable identities for projects, issuers or counterparties where useful.
+- **World ID:** privacy-preserving verification boundary before restricted investor actions.
+
+The visible order book is an **illustrative market-depth UI** in the EVM prototype; Uniswap v4 itself is AMM-based rather than a central-limit order book. The separately explored Sui design could use **DeepBook** for a native onchain order-book implementation.
+
+---
+
+### How the six use cases connect
+
+```text
+1. Dashboard
+   Discover an opportunity
+        |
+        v
+2. Project Verification
+   Establish project trust and provenance
+        |
+        v
+5. Asset Detail
+   Evaluate financial terms + impact + token structure
+        |
+        v
+6. Secondary Market
+   Buy / sell through programmable liquidity
+        |
+        v
+4. Portfolio
+   Hold, monitor, rebalance and receive distributions
+        |
+        v
+3. Impact Analytics
+   Measure financial + real-world outcomes
+        |
+        +---------------------> feedback into future investment decisions
+```
+
+### Demo-data and production boundary
+
+The screenshots and frontend currently use illustrative project, price, liquidity, return and impact values designed to explain the product. They should not be interpreted as live investment data or verified real-world claims.
+
+A production implementation would additionally require live contract indexing, audited smart contracts, production Uniswap v4 pools/hooks, secured 1inch integration, identity/eligibility controls where legally required, verified oracle/MRV sources, robust repayment snapshots, project-document storage, and jurisdiction-specific compliance controls.
 
 ## Smart contracts
 
