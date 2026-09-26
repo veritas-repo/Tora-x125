@@ -114,6 +114,55 @@ The intended demo journey is **Dashboard → Project Verification → Asset Deta
 
 ### 1. Investor dashboard — `/`
 
+**Implementation depth**
+
+At runtime the dashboard should aggregate three independent domains:
+
+1. **identity / eligibility state** — wallet + World ID verification result;
+2. **market state** — balances, prices, liquidity, volume and recent swaps;
+3. **impact state** — project metadata, MRV values and verification timestamps.
+
+A practical API shape is:
+
+```ts
+type DashboardSnapshot = {
+  account: `0x${string}`;
+  chainId: 11155111 | 84532;
+  worldId: {
+    verified: boolean;
+    action: "verify-investor";
+    verifiedAt?: string;
+  };
+  markets: Array<{
+    asset: `0x${string}`;
+    symbol: string;
+    priceUsd: string;
+    liquidityUsd: string;
+    volume24hUsd: string;
+    routeSource: "uniswap-v4" | "1inch";
+  }>;
+  impact: {
+    carbonTco2e: string;
+    renewableMw: string;
+    habitatHa: string;
+    dataTimestamp: string;
+  };
+};
+```
+
+For **Sepolia / Base Sepolia**, the dashboard should read contract addresses from environment variables rather than hard-code them:
+
+```bash
+NEXT_PUBLIC_CHAIN_ID=11155111
+NEXT_PUBLIC_IMPACT_ASSET_ADDRESS=0x...
+NEXT_PUBLIC_IMPACT_TOKEN_ADDRESS=0x...
+NEXT_PUBLIC_MARKET_ROUTER_ADDRESS=0x...
+```
+
+The same build can target Base Sepolia by switching `NEXT_PUBLIC_CHAIN_ID=84532` and using the Base deployment addresses.
+
+
+
 <p align="center">
   <img src="docs/images/dashboard.png" alt="Tora-x125 investor dashboard" width="100%" />
 </p>
@@ -173,6 +222,75 @@ The current dashboard uses demo data from the frontend data layer. In a producti
 
 ### 2. Project verification — `/projects`
 
+**Implementation depth**
+
+Project verification should be modelled as an auditable state machine rather than a single boolean.
+
+```solidity
+enum VerificationState {
+    Draft,
+    DueDiligence,
+    ThirdPartyVerified,
+    ApprovedForIssuance,
+    Suspended
+}
+
+struct VerificationRecord {
+    bytes32 documentHash;
+    string metadataURI;
+    uint64 verifiedAt;
+    address verifier;
+    VerificationState state;
+}
+```
+
+A project update should emit events so the frontend/indexer can reconstruct the verification history:
+
+```solidity
+event VerificationUpdated(
+    uint256 indexed projectId,
+    bytes32 indexed documentHash,
+    address indexed verifier,
+    VerificationState state,
+    string metadataURI
+);
+```
+
+For a testnet demonstration, the deployment script can create the sample project immediately after contract deployment:
+
+```ts
+await asset.createProject(
+  deployer.address,
+  1000,
+  "Tokyo Bay Solar Bond",
+  "Renewable Energy",
+  "Japan",
+  "ipfs://tora-x125/tokyo-bay-solar.json",
+  ethers.parseUnits("1000", 18),
+  Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
+  88,
+  24
+);
+```
+
+On Sepolia or Base Sepolia, the transaction receipt and emitted project ID become the source of truth shown in the onchain audit trail.
+
+**World ID boundary**
+
+World ID verifies the **investor action**, not the underlying project. A server endpoint should receive a proof, verify it using the configured World App/action, and return only an application-level result:
+
+```ts
+type EligibilityResult = {
+  eligible: boolean;
+  action: "verify-investor";
+  expiresAt: number;
+};
+```
+
+The project contract should not store World ID identity data.
+
+
+
 <p align="center">
   <img src="docs/images/project-verification.png" alt="Tora-x125 project verification screen" width="100%" />
 </p>
@@ -229,6 +347,54 @@ This flow intentionally separates **verification evidence** from **financial own
 
 ### 3. Impact analytics — `/impact`
 
+**Implementation depth**
+
+Impact analytics should preserve provenance for every metric instead of storing only a final number.
+
+```ts
+type ImpactObservation = {
+  projectId: bigint;
+  metric: "tCO2e" | "MWh" | "hectares" | "households";
+  value: string;
+  periodStart: string;
+  periodEnd: string;
+  methodology: string;
+  sourceURI: string;
+  sourceHash: `0x${string}`;
+  verifier: `0x${string}`;
+  verifiedAt: string;
+};
+```
+
+A production indexer would join:
+
+```text
+ImpactAsset1155 balances
+        +
+project metadata / MRV observations
+        +
+RepaymentVault events
+        +
+Uniswap v4 swap/pool events
+        +
+1inch route observations
+        =
+portfolio financial + impact analytics
+```
+
+For testnet use, market analytics can be populated from Sepolia/Base Sepolia transactions while impact metrics remain demo or manually anchored records. The README and UI should continue to label which values are **onchain testnet data** and which are **illustrative MRV data**.
+
+**Uniswap / 1inch separation**
+
+- Uniswap v4 pool events provide executed market activity.
+- 1inch responses provide route/quote observations.
+- MRV feeds provide impact data.
+- World ID contributes eligibility state only.
+
+Those streams should remain separate in the analytics schema.
+
+
+
 <p align="center">
   <img src="docs/images/impact-analytics.png" alt="Tora-x125 impact analytics screen" width="100%" />
 </p>
@@ -282,6 +448,68 @@ In production, Tora-x125 would preserve the source, methodology, reporting perio
 ---
 
 ### 4. Portfolio management — `/portfolio`
+
+**Implementation depth**
+
+Portfolio state should be rebuilt from chain state rather than persisted as a mutable frontend total.
+
+```ts
+const projectBalance = await impactAsset.balanceOf(account, projectId);
+const settlementBalance = await impactToken.balanceOf(account);
+const claimable = await repaymentVault.claimable(projectId, account);
+```
+
+A rebalancing request can use 1inch for route discovery while keeping Uniswap v4 as the preferred programmable pool when the direct route is competitive:
+
+```text
+Current holdings
+   ↓
+Target weights
+   ↓
+Generate required token deltas
+   ↓
+Fetch 1inch quote(s)
+   ↓
+Read direct Uniswap v4 pool state
+   ↓
+Compare expected output + gas + slippage
+   ↓
+World ID / eligibility re-check
+   ↓
+Permit2 / approval
+   ↓
+Execute route
+   ↓
+Wait for receipt
+   ↓
+Refresh balances + claimable repayments
+```
+
+**Illustrative 1inch server-side quote request**
+
+```ts
+const url = buildOneInchQuoteUrl({
+  chainId,
+  src: sourceToken,
+  dst: destinationToken,
+  amount: amountInBaseUnits,
+  from: account
+});
+
+const response = await fetch(url, {
+  headers: {
+    Authorization: `Bearer ${process.env.ONEINCH_API_KEY}`
+  }
+});
+```
+
+The API key belongs only in the server environment. The browser receives a sanitised quote object, not the credential.
+
+**Testnet note**
+
+1inch support differs by chain/network and asset. For a Sepolia/Base Sepolia demo, the app can still exercise its own Uniswap v4 test pool directly even when a 1inch route is unavailable, while keeping the 1inch integration enabled for supported environments.
+
+
 
 <p align="center">
   <img src="docs/images/portfolio.png" alt="Tora-x125 portfolio management screen" width="100%" />
@@ -340,6 +568,93 @@ A production distribution model should use appropriate record-date/snapshot mech
 ---
 
 ### 5. Tokenised asset detail — `/assets/emerald-horizons`
+
+**Implementation depth**
+
+The asset page is the transaction-orchestration layer. Before enabling **Buy** or **Sell**, it should perform:
+
+```text
+1. Check connected wallet
+2. Check expected chain ID
+3. Load deployed contract addresses
+4. Load project + token metadata
+5. Load World ID eligibility/session
+6. Read token balance / allowance
+7. Fetch direct Uniswap v4 pool quote
+8. Fetch 1inch quote when supported
+9. Apply slippage + deadline policy
+10. Construct approval / Permit2 transaction if needed
+11. Construct swap transaction
+12. Present exact token amounts and contracts to user
+13. Sign in MetaMask
+14. Wait for receipt and refresh state
+```
+
+**World ID server verification skeleton**
+
+The exact World ID SDK/API call is version-specific, but the application boundary should look like this:
+
+```ts
+// app/api/world-id/verify/route.ts
+export async function POST(req: Request) {
+  const proof = await req.json();
+
+  // Verify proof server-side against:
+  // - configured World App / app ID
+  // - action: "verify-investor"
+  // - expected verification level / policy
+  const result = await verifyWorldIdProofServerSide(proof);
+
+  if (!result.success) {
+    return Response.json({ eligible: false }, { status: 403 });
+  }
+
+  return Response.json({
+    eligible: true,
+    action: "verify-investor",
+    expiresAt: Date.now() + 15 * 60 * 1000
+  });
+}
+```
+
+**Uniswap v4 transaction boundary**
+
+The repository currently accepts an already encoded Universal Router plan:
+
+```ts
+await executeUniversalRouter(
+  signer,
+  routerAddress,
+  commands,
+  inputs,
+  deadline,
+  value
+);
+```
+
+The production encoder should use the official Uniswap v4 SDK/contracts for the deployed testnet version and derive:
+
+- PoolKey / currency pair
+- fee
+- tick spacing
+- hook address
+- exact-input or exact-output swap parameters
+- minimum output
+- Permit2 actions
+- deadline
+
+**Testnet example**
+
+After deploying `ImpactToken` and the fungible representation of a project asset to Sepolia/Base Sepolia:
+
+```bash
+npm run deploy:sepolia
+npm run deploy:base-sepolia
+```
+
+the asset page can be pointed at those addresses via `.env.local`. Any pool/router address shown to the user should be the actual testnet deployment address, never an assumed production address.
+
+
 
 <p align="center">
   <img src="docs/images/asset-detail.png" alt="Tora-x125 tokenised asset detail screen" width="100%" />
@@ -421,6 +736,145 @@ For market liquidity, ERC-1155 project units may require a defined fungible repr
 ---
 
 ### 6. Secondary market — `/market`
+
+**Implementation depth**
+
+The secondary market should separate **quote generation**, **policy checks**, and **execution**.
+
+```mermaid
+flowchart TD
+    A[Order request] --> B[Validate wallet + chain]
+    B --> C[Validate World ID eligibility]
+    C --> D[Read project active / verified state]
+    D --> E[Read Uniswap v4 pool state]
+    D --> F[Request 1inch route where supported]
+    E --> G[Normalise quote]
+    F --> G
+    G --> H[Compare output, gas, slippage, deadline]
+    H --> I[Choose route]
+    I --> J[Permit2 / token approval]
+    J --> K[Sign transaction]
+    K --> L[Execute]
+    L --> M[Index receipt + swap events]
+    M --> N[Refresh market and portfolio]
+```
+
+**Uniswap v4 testnet deployment pattern**
+
+A complete v4 demo requires more than deploying the Tora contracts. The integration also needs access to the v4 deployment components for the target network:
+
+```text
+PoolManager
+Universal Router
+Permit2
+PositionManager / liquidity provisioning path
+optional Tora hook
+project asset ERC-20 or fungible wrapper
+settlement token
+initial liquidity
+```
+
+Network addresses should be stored in configuration:
+
+```ts
+type MarketDeployment = {
+  chainId: number;
+  poolManager: `0x${string}`;
+  universalRouter: `0x${string}`;
+  permit2: `0x${string}`;
+  hook?: `0x${string}`;
+  projectToken: `0x${string}`;
+  settlementToken: `0x${string}`;
+};
+```
+
+A deployment registry is preferable to scattered environment variables once multiple assets are live.
+
+**Optional v4 hook design**
+
+A Tora-specific hook could enforce market-state logic such as:
+
+```solidity
+function beforeSwap(...) external returns (...) {
+    require(projectRegistry.isActive(projectId), "PROJECT_INACTIVE");
+    require(riskRegistry.riskScore(projectId) <= maxRiskScore, "RISK_LIMIT");
+    // additional pool-specific policy
+}
+```
+
+This is only one control layer. Legally required transfer restrictions should also exist in the asset/transfer architecture rather than depend only on a liquidity hook.
+
+**1inch route comparison**
+
+Tora-x125 can normalise both direct-v4 and aggregated quotes:
+
+```ts
+type ExecutableQuote = {
+  source: "uniswap-v4" | "1inch";
+  amountIn: bigint;
+  expectedAmountOut: bigint;
+  minAmountOut: bigint;
+  estimatedGas: bigint;
+  expiresAt: number;
+  transaction?: {
+    to: `0x${string}`;
+    data: `0x${string}`;
+    value: bigint;
+  };
+};
+```
+
+Before presenting a 1inch-generated transaction, the server should validate:
+
+- chain ID
+- source/destination token addresses
+- recipient
+- destination contract
+- input amount
+- minimum output / slippage policy
+- quote age
+- project eligibility state
+
+**World ID trade gating**
+
+World ID should be checked before quote execution, and optionally rechecked when the eligibility session expires:
+
+```text
+World ID proof
+    ↓
+server verification
+    ↓
+short-lived eligibility session
+    ↓
+quote request
+    ↓
+transaction construction
+    ↓
+wallet signature
+```
+
+For a regulated RWA deployment, this is only one element of the compliance decision and does not replace KYC/AML, accreditation, jurisdictional or transfer-rule controls.
+
+**Concrete Sepolia / Base Sepolia demo sequence**
+
+```bash
+# 1. deploy Tora contracts
+npm run deploy:sepolia
+npm run deploy:base-sepolia
+
+# 2. record addresses in environment / deployment registry
+# 3. configure v4 PoolManager / Router / Permit2 for each chain
+# 4. deploy or configure fungible project-token representation
+# 5. initialise pool and seed test liquidity
+# 6. configure World ID app/action for the frontend + verifier
+# 7. configure 1inch API key on the server
+# 8. run Next.js against the selected testnet
+npm run dev
+```
+
+Current repository status: contract deployment is configured for both testnets, but the latest GitHub Actions deployment stopped before broadcasting because `DEPLOYER_PRIVATE_KEY` has not yet been configured as a repository secret. The README therefore does not claim live contract or liquidity-pool addresses yet.
+
+
 
 <p align="center">
   <img src="docs/images/secondary-market.png" alt="Tora-x125 secondary market screen" width="100%" />
@@ -522,6 +976,89 @@ sequenceDiagram
 - The proof is verified server-side and converted into an application-level eligibility/session result.
 - The app can use the nullifier/action semantics to prevent inappropriate proof reuse without storing identity data onchain.
 - If a trade requires stronger regulatory checks, World ID becomes one input into the eligibility decision rather than the sole compliance mechanism.
+
+---
+
+### Shared technical implementation across all six use cases
+
+#### Environment model
+
+```bash
+# Chain / deployment
+NEXT_PUBLIC_CHAIN_ID=11155111
+NEXT_PUBLIC_IMPACT_ASSET_ADDRESS=0x...
+NEXT_PUBLIC_IMPACT_TOKEN_ADDRESS=0x...
+NEXT_PUBLIC_MARKET_ROUTER_ADDRESS=0x...
+
+# World ID
+NEXT_PUBLIC_WORLD_ID_APP_ID=app_...
+NEXT_PUBLIC_WORLD_ID_ACTION=verify-investor
+
+# Server-only
+ONEINCH_API_KEY=...
+SEPOLIA_RPC_URL=https://...
+BASE_SEPOLIA_RPC_URL=https://...
+DEPLOYER_PRIVATE_KEY=0x...
+```
+
+`DEPLOYER_PRIVATE_KEY` and `ONEINCH_API_KEY` must never be exposed through `NEXT_PUBLIC_*` variables.
+
+#### Network-aware configuration
+
+```ts
+const deployments = {
+  11155111: {
+    name: "Ethereum Sepolia",
+    impactAsset: process.env.NEXT_PUBLIC_IMPACT_ASSET_ADDRESS,
+    impactToken: process.env.NEXT_PUBLIC_IMPACT_TOKEN_ADDRESS
+  },
+  84532: {
+    name: "Base Sepolia",
+    impactAsset: process.env.NEXT_PUBLIC_BASE_IMPACT_ASSET_ADDRESS,
+    impactToken: process.env.NEXT_PUBLIC_BASE_IMPACT_TOKEN_ADDRESS
+  }
+} as const;
+```
+
+The application should refuse to transact if the connected wallet chain is not one of the configured deployments.
+
+#### Recommended server-side routes
+
+```text
+POST /api/world-id/verify
+    verify proof and return short-lived eligibility state
+
+GET /api/quote?chainId=&src=&dst=&amount=
+    call 1inch server-side where supported
+    read direct Uniswap v4 route
+    normalise and compare quotes
+
+POST /api/prepare-swap
+    revalidate chain, asset status, eligibility and slippage
+    return encoded execution data
+
+GET /api/projects/:id
+    merge indexed onchain state + verified metadata/MRV references
+```
+
+#### Testnet deployment lifecycle
+
+```mermaid
+flowchart LR
+    A[Compile + tests] --> B[Deploy ImpactToken]
+    B --> C[Deploy ImpactAsset1155]
+    C --> D[Deploy RepaymentVault]
+    D --> E[Create sample project]
+    E --> F[Record addresses]
+    F --> G[Configure World ID]
+    G --> H[Configure v4 contracts / pool]
+    H --> I[Seed test liquidity]
+    I --> J[Configure 1inch server API]
+    J --> K[Run end-to-end transaction]
+    K --> L[Add explorer links + tx hashes to README]
+```
+
+A deployment should be considered complete only after the application can demonstrate an end-to-end transaction with explorer-verifiable receipts, not merely after the three Tora contracts have been deployed.
 
 ---
 
