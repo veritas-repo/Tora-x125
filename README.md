@@ -77,7 +77,7 @@ If you have only a few minutes, review the project in this order:
 
 ### Partner technology summary
 
-**World ID** — used as a privacy-preserving investor-verification boundary before restricted actions. The repo currently contains the application/action configuration layer; server-side proof verification is documented as the next execution step.
+**World ID for Agents** — integrated against the official event sandbox issuer `https://sandbox.auth.world.org`. Tora-x125 uses OIDC Authorization Code + PKCE for a fresh human verification, exchanges the code only on the backend, validates the World-signed ID token with JWKS/issuer/audience/nonce/freshness checks, and then issues a short-lived authorization before the protected Trade Agent can proceed.
 
 **Uniswap v4** — used as the programmable liquidity layer. The repo includes an executable Universal Router helper and documents PoolManager, Permit2, pool configuration, liquidity seeding and optional hook logic.
 
@@ -104,7 +104,7 @@ contracts/
 lib/
   uniswap.ts                       Universal Router execution helper
   oneinch.ts                       1inch quote adapter
-  worldid.ts                       World ID configuration boundary
+  worldid.ts                       client-safe World integration types\n  worldid-server.ts                sandbox OIDC + PKCE + secure ID-token validation
   ens.ts                           ENS identity resolution
 
 scripts/
@@ -125,6 +125,18 @@ scripts/
 The deployment workflow has already been exercised through dependency installation and contract compilation. It intentionally stops before broadcasting if the deployer secret is absent, so no private key is ever committed to the repository.
 
 ---
+
+## World prize review — World ID for Agents
+
+| Qualification requirement | Tora-x125 implementation |
+| --- | --- |
+| Official event dev environment | Issuer is pinned to `https://sandbox.auth.world.org`; discovery, authorization, token and JWKS endpoints are read from OIDC metadata. |
+| Full journey | `/world-agents` shows request → user completion → backend validation → protected Trade Agent authorization. |
+| Unsuccessful path | Cancel/deny/expiry/invalid session are handled; the judge demo also clears the session and proves the protected action returns `403` and `actionExecuted=false`. |
+| Secure backend validation | Confidential client secret is server-only; code exchange and signed ID-token validation happen in `lib/worldid-server.ts`. |
+| Integration debrief | See `docs/world-id-agents-debrief.md`. |
+
+> **Live credential note:** the source integration is complete, but a real sandbox round trip requires an event sandbox OIDC client ID/secret and an exact public HTTPS callback. Do not claim a successful live World authentication until those credentials are configured and the full round trip has been recorded.
 
 ## Hackathon stack
 
@@ -331,7 +343,7 @@ The current dashboard uses demo data from the frontend data layer. In a producti
 
 **World ID / Uniswap / 1inch implementation details**
 
-- **World ID:** the dashboard can expose verification state alongside the connected wallet. The current `lib/worldid.ts` reads `NEXT_PUBLIC_WORLD_ID_APP_ID` and `NEXT_PUBLIC_WORLD_ID_ACTION` (default action: `verify-investor`). The intended flow is to collect a World ID proof in the client, send it to a server-side verification endpoint, and persist only the resulting eligibility state or nullifier-derived status needed by the app—not identity data onchain.
+- **World ID for Agents:** the dashboard can expose fresh human-verification state alongside the connected wallet. The official event sandbox uses a confidential OIDC client; Tora-x125 starts Authorization Code + PKCE on the server, validates the callback on the server, and exposes only a hashed subject plus short-lived eligibility state to the UI.
 - **Uniswap v4:** market cards can display pool-derived liquidity, volume and price data for fungible representations of project assets. The repo already provides `executeUniversalRouter(...)` in `lib/uniswap.ts`, which submits a pre-encoded Universal Router plan using `commands`, `inputs`, `deadline` and optional ETH value.
 - **1inch:** dashboard price discovery can compare aggregated routes across available EVM liquidity. `lib/oneinch.ts` currently builds a v6 quote URL from `chainId`, source token, destination token, amount and optional sender. API credentials should remain server-side behind a Next.js route rather than being exposed in the browser.
 - **Decision logic:** dashboard quotes should be treated as indicative. The executable route is selected only after investor eligibility, token approvals, slippage limits and chain state are revalidated at transaction time.
@@ -1108,9 +1120,13 @@ NEXT_PUBLIC_IMPACT_ASSET_ADDRESS=0x...
 NEXT_PUBLIC_IMPACT_TOKEN_ADDRESS=0x...
 NEXT_PUBLIC_MARKET_ROUTER_ADDRESS=0x...
 
-# World ID
-NEXT_PUBLIC_WORLD_ID_APP_ID=app_...
-NEXT_PUBLIC_WORLD_ID_ACTION=verify-investor
+# World ID for Agents - official event sandbox (server-only confidential client)
+WORLD_ID_ISSUER=https://sandbox.auth.world.org
+WORLD_ID_CLIENT_ID=...
+WORLD_ID_CLIENT_SECRET=...
+WORLD_ID_REDIRECT_URI=https://YOUR_PUBLIC_HTTPS_HOST/api/world/callback
+WORLD_ID_SESSION_SECRET=...
+WORLD_ID_SESSION_TTL_SECONDS=300
 
 # Server-only
 ONEINCH_API_KEY=...
@@ -1119,7 +1135,7 @@ BASE_SEPOLIA_RPC_URL=https://...
 DEPLOYER_PRIVATE_KEY=0x...
 ```
 
-`DEPLOYER_PRIVATE_KEY` and `ONEINCH_API_KEY` must never be exposed through `NEXT_PUBLIC_*` variables.
+`DEPLOYER_PRIVATE_KEY`, `ONEINCH_API_KEY`, `WORLD_ID_CLIENT_SECRET`, and `WORLD_ID_SESSION_SECRET` must never be exposed through `NEXT_PUBLIC_*` variables.
 
 #### Network-aware configuration
 
@@ -1143,8 +1159,20 @@ The application should refuse to transact if the connected wallet chain is not o
 #### Recommended server-side routes
 
 ```text
-POST /api/world-id/verify
-    verify proof and return short-lived eligibility state
+POST /api/world/start
+    create PKCE/state/nonce request bound to one trade and return sandbox authorize URL
+
+GET /api/world/callback
+    server-side code exchange + JWKS/issuer/audience/nonce/auth_time validation
+
+GET /api/world/status
+    expose only non-sensitive validated session status
+
+POST /api/world/protected-action
+    issue a short-lived trade authorization only after validated World identity
+
+POST /api/world/reset
+    clear the verification session for the denied-path demo
 
 GET /api/quote?chainId=&src=&dst=&amount=
     call 1inch server-side where supported
@@ -1263,9 +1291,56 @@ For the hackathon MVP, 1inch and Uniswap v4 are complementary:
 
 ENS is used as the readable identity layer for issuers, projects and counterparties. The frontend helper resolves ENS names through the connected EVM provider.
 
-### World ID
+### World ID for Agents
 
-World ID is the privacy-preserving investor-verification layer. The current repository exposes the application/action configuration boundary so the frontend can add proof verification without embedding personal identity data into the project-token contract.
+Tora-x125 integrates the **official ETHGlobal event development environment** at `https://sandbox.auth.world.org` as a confidential OIDC client. The integration uses Authorization Code + PKCE, a fresh authentication request, backend-only token exchange and JWKS validation before the application grants a protected Trade Agent action.
+
+**Complete judge journey**
+
+```text
+Investor defines a trade
+      ↓
+POST /api/world/start
+      ↓
+PKCE + state + nonce + immutable trade binding
+      ↓
+Official World ID for Agents sandbox
+      ↓
+User completes / cancels authentication
+      ↓
+GET /api/world/callback
+      ↓
+Backend code exchange + signed ID-token validation
+      ↓
+HttpOnly short-lived verified session
+      ↓
+POST /api/world/protected-action
+      ↓
+2-minute Trade Agent authorization
+      ↓
+1inch / Uniswap v4 route comparison → wallet signature
+```
+
+**Failure journey**
+
+A cancelled World request, expired request, invalid state/nonce/token, expired verified session, or direct call without a validated session returns a denied result. The protected route returns HTTP `403` with `actionExecuted=false`; no trade authorization is produced. The dedicated **`/world-agents`** screen includes a **Test denied path** button that clears the verified session and proves this fail-closed behavior.
+
+**Security boundary**
+
+The client secret and session-signing secret exist only in server environment variables. The browser never exchanges the authorization code with World and never treats an unvalidated callback as authorization. The backend validates the World signature through the sandbox JWKS plus issuer, audience, expiry, state, nonce and authentication freshness before creating an HttpOnly signed session. Raw World `sub` is not exposed to the client or written onchain.
+
+**Code for judges**
+
+- `lib/worldid-server.ts` — official sandbox discovery, PKCE, secure code exchange, ID-token/JWKS validation and signed sessions.
+- `app/api/world/start/route.ts` — creates the fresh verification request.
+- `app/api/world/callback/route.ts` — handles success, denied, cancelled and expired outcomes.
+- `app/api/world/protected-action/route.ts` — fail-closed protected Trade Agent action.
+- `components/WorldAgentGate.tsx` + `app/world-agents/page.tsx` — complete interactive success/failure demo.
+- `docs/world-id-agents-debrief.md` — integration feedback and live-demo checklist.
+
+**Live event configuration**
+
+Register a confidential sandbox OIDC client and use the exact public HTTPS callback `https://YOUR_HOST/api/world/callback`. Then configure `WORLD_ID_CLIENT_ID`, `WORLD_ID_CLIENT_SECRET`, `WORLD_ID_REDIRECT_URI`, and a random `WORLD_ID_SESSION_SECRET` on the backend. The official event sandbox does not use the old public `NEXT_PUBLIC_WORLD_ID_APP_ID` flow for this Agents integration.
 
 ## Networks
 
